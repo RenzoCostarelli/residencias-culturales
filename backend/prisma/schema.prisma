@@ -1,0 +1,266 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum RolUsuario {
+  SUPERADMIN
+  ADMIN_GRUPO
+  EVALUADOR
+}
+
+enum EstadoEvaluacionInscripto {
+  PENDIENTE
+  EN_PROGRESO
+  EVALUADO
+}
+
+enum ResultadoFinalInscripto {
+  PENDIENTE
+  ACEPTADO
+  RECHAZADO
+  LISTA_ESPERA
+}
+
+enum TipoDatoCampo {
+  TEXTO
+  TEXTO_LARGO
+  NUMERO
+  FECHA
+  OPCION_UNICA
+  OPCION_MULTIPLE
+  BOOLEANO
+  URL
+}
+
+enum EstadoImportacion {
+  PENDIENTE
+  PROCESANDO
+  COMPLETADO
+  ERROR
+}
+
+enum EstadoEvaluacion {
+  BORRADOR
+  COMPLETA
+}
+
+enum RolEspecialCampo {
+  NOMBRE_COMPLETO
+  EMAIL
+  DNI
+  TELEFONO
+  FECHA_NACIMIENTO
+  ZONA_GRUPO
+}
+
+model Usuario {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  passwordHash String     @map("password_hash")
+  nombre       String
+  apellido     String
+  rol          RolUsuario
+  activo       Boolean    @default(true)
+  createdById  String?    @map("created_by")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  gruposAdministrados GrupoAdministrador[]
+  paresComoEvaluador1 ParEvaluadores[]      @relation("Evaluador1")
+  paresComoEvaluador2 ParEvaluadores[]      @relation("Evaluador2")
+  evaluaciones        Evaluacion[]
+
+  @@map("usuarios")
+}
+
+model Grupo {
+  id          String   @id @default(uuid())
+  nombre      String   @unique
+  descripcion String?
+  createdById String?  @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  administradores GrupoAdministrador[]
+  pares           ParEvaluadores[]
+  lotes           Lote[]
+  inscriptos      Inscripto[]
+
+  @@map("grupos")
+}
+
+model GrupoAdministrador {
+  grupoId   String   @map("grupo_id")
+  usuarioId String   @map("usuario_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  grupo   Grupo   @relation(fields: [grupoId], references: [id], onDelete: Cascade)
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@id([grupoId, usuarioId])
+  @@map("grupo_administradores")
+}
+
+model ParEvaluadores {
+  id           String   @id @default(uuid())
+  grupoId      String   @map("grupo_id")
+  evaluador1Id String   @map("evaluador_1_id")
+  evaluador2Id String   @map("evaluador_2_id")
+  activo       Boolean  @default(true)
+  createdById  String?  @map("created_by")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  grupo      Grupo       @relation(fields: [grupoId], references: [id], onDelete: Cascade)
+  evaluador1 Usuario     @relation("Evaluador1", fields: [evaluador1Id], references: [id])
+  evaluador2 Usuario     @relation("Evaluador2", fields: [evaluador2Id], references: [id])
+  lotes      Lote[]
+  inscriptos Inscripto[]
+
+  @@unique([grupoId, evaluador1Id, evaluador2Id])
+  @@map("pares_evaluadores")
+}
+
+model Lote {
+  id          String   @id @default(uuid())
+  grupoId     String   @map("grupo_id")
+  nombre      String
+  parId       String?  @map("par_id")
+  createdById String?  @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  grupo      Grupo           @relation(fields: [grupoId], references: [id], onDelete: Cascade)
+  par        ParEvaluadores? @relation(fields: [parId], references: [id])
+  inscriptos Inscripto[]
+
+  @@map("lotes")
+}
+
+model CampoFormulario {
+  id             String        @id @default(uuid())
+  clave          String        @unique
+  etiqueta       String
+  tipoDato       TipoDatoCampo @map("tipo_dato")
+  esIdentificatorio Boolean    @default(false) @map("es_identificatorio")
+  esEvaluable    Boolean       @default(false) @map("es_evaluable")
+  puntajeMaximo  Decimal?      @map("puntaje_maximo") @db.Decimal(5, 2)
+  rolEspecial    RolEspecialCampo? @map("rol_especial")
+  orden          Int           @default(0)
+  activo         Boolean       @default(true)
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  respuestas RespuestaInscripto[]
+  detalles   EvaluacionDetalle[]
+
+  @@unique([rolEspecial])
+  @@map("campos_formulario")
+}
+
+model ImportacionExcel {
+  id                String            @id @default(uuid())
+  archivoNombre     String            @map("archivo_nombre")
+  archivoHash       String            @map("archivo_hash")
+  rutaArchivo       String?           @map("ruta_archivo")
+  hojaSeleccionada  String?           @map("hoja_seleccionada")
+  filasTotales    Int               @default(0) @map("filas_totales")
+  filasImportadas Int               @default(0) @map("filas_importadas")
+  filasError      Int               @default(0) @map("filas_error")
+  mapeoColumnas   Json?             @map("mapeo_columnas")
+  estado          EstadoImportacion @default(PENDIENTE)
+  importadoPorId  String?           @map("importado_por")
+  logErrores      Json?             @map("log_errores")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  finishedAt      DateTime?         @map("finished_at")
+
+  inscriptos Inscripto[]
+
+  @@map("importaciones_excel")
+}
+
+model Inscripto {
+  id        String @id @default(uuid())
+  uid       String @unique
+
+  nombreCompleto  String  @map("nombre_completo")
+  email           String?
+  dni             String? @unique
+  telefono        String?
+  fechaNacimiento DateTime? @map("fecha_nacimiento")
+
+  grupoId String? @map("grupo_id")
+  loteId  String? @map("lote_id")
+  parId   String? @map("par_id")
+
+  estadoEvaluacion EstadoEvaluacionInscripto @default(PENDIENTE) @map("estado_evaluacion")
+  resultadoFinal   ResultadoFinalInscripto   @default(PENDIENTE) @map("resultado_final")
+  puntajeFinal     Decimal?                  @map("puntaje_final") @db.Decimal(5, 2)
+
+  resultadoDecididoPorId String?   @map("resultado_decidido_por")
+  resultadoDecididoAt    DateTime? @map("resultado_decidido_at")
+
+  importacionId String? @map("importacion_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  grupo       Grupo?            @relation(fields: [grupoId], references: [id])
+  lote        Lote?             @relation(fields: [loteId], references: [id])
+  par         ParEvaluadores?   @relation(fields: [parId], references: [id])
+  importacion ImportacionExcel? @relation(fields: [importacionId], references: [id])
+
+  respuestas   RespuestaInscripto[]
+  evaluaciones Evaluacion[]
+
+  @@map("inscriptos")
+}
+
+model RespuestaInscripto {
+  id          String  @id @default(uuid())
+  inscriptoId String  @map("inscripto_id")
+  campoId     String  @map("campo_id")
+  valorTexto  String? @map("valor_texto")
+
+  inscripto Inscripto       @relation(fields: [inscriptoId], references: [id], onDelete: Cascade)
+  campo     CampoFormulario @relation(fields: [campoId], references: [id])
+
+  @@unique([inscriptoId, campoId])
+  @@map("respuestas_inscripto")
+}
+
+model Evaluacion {
+  id                String           @id @default(uuid())
+  inscriptoId       String           @map("inscripto_id")
+  evaluadorId       String           @map("evaluador_id")
+  estado            EstadoEvaluacion @default(BORRADOR)
+  puntajeTotal      Decimal?         @map("puntaje_total") @db.Decimal(5, 2)
+  comentarioGeneral String?          @map("comentario_general")
+  fechaInicio       DateTime         @default(now()) @map("fecha_inicio")
+  fechaCompletada   DateTime?        @map("fecha_completada")
+
+  inscripto Inscripto @relation(fields: [inscriptoId], references: [id], onDelete: Cascade)
+  evaluador Usuario   @relation(fields: [evaluadorId], references: [id])
+  detalles  EvaluacionDetalle[]
+
+  @@unique([inscriptoId, evaluadorId])
+  @@map("evaluaciones")
+}
+
+model EvaluacionDetalle {
+  id           String   @id @default(uuid())
+  evaluacionId String   @map("evaluacion_id")
+  campoId      String   @map("campo_id")
+  puntaje      Decimal  @db.Decimal(5, 2)
+  comentario   String?
+
+  evaluacion Evaluacion      @relation(fields: [evaluacionId], references: [id], onDelete: Cascade)
+  campo      CampoFormulario @relation(fields: [campoId], references: [id])
+
+  @@unique([evaluacionId, campoId])
+  @@map("evaluacion_detalles")
+}

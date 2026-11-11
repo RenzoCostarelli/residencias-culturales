@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "Segoe UI", system-ui, sans-serif;
+
+  --color-bg: oklch(98% 0.002 95);
+  --color-surface: oklch(100% 0 0);
+  --color-surface-muted: oklch(96% 0.004 95);
+  --color-border: oklch(90% 0.005 95);
+  --color-border-strong: oklch(82% 0.006 95);
+
+  --color-text: oklch(22% 0.01 95);
+  --color-text-muted: oklch(48% 0.012 95);
+  --color-text-faint: oklch(62% 0.01 95);
+
+  --color-primary: oklch(42% 0.09 220);
+  --color-primary-hover: oklch(36% 0.09 220);
+  --color-primary-soft: oklch(94% 0.025 220);
+
+  --color-danger: oklch(55% 0.19 25);
+  --color-danger-soft: oklch(95% 0.03 25);
+  --color-success: oklch(50% 0.13 155);
+  --color-success-soft: oklch(95% 0.04 155);
+  --color-warning: oklch(68% 0.14 75);
+  --color-warning-soft: oklch(95% 0.045 75);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+* {
+  border-color: var(--color-border);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}

@@ -1,0 +1,22 @@
+Credenciales de usuarios de prueba — entorno local
+(no commitear este archivo)
+
+Superadmin
+  email:    admin@example.org
+  password: dev-local-password
+
+Evaluador 1 (Eva Luna)
+  email:    eval1@example.org
+  password: Test1234!
+
+Evaluador 2 (Leo Diaz)
+  email:    eval2@example.org
+  password: Test1234!
+
+Admin de grupo (Ana Rios)
+  email:    adminrosario@example.org
+  password: Test1234!
+
+Nota: las contraseñas de eval1, eval2 y adminrosario fueron reseteadas a
+Test1234! el 2026-11-10 porque no había registro de la contraseña original
+en texto plano (solo el hash en la base).
