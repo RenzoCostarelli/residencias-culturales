@@ -9,7 +9,7 @@ const MIS_EVALUACIONES = { to: "/evaluador", label: "Mis evaluaciones" };
 const NAV_POR_ROL: Record<Rol, { to: string; label: string }[]> = {
   SUPERADMIN: [
     { to: "/superadmin/usuarios", label: "Usuarios" },
-    { to: "/superadmin/grupos", label: "Grupos" },
+    { to: "/superadmin/grupos", label: "Zonas" },
     { to: "/superadmin/rubrica", label: "Rúbrica" },
     { to: "/superadmin/importaciones", label: "Importar Excel" },
     MIS_EVALUACIONES,
@@ -23,14 +23,18 @@ export function AppShell() {
   const location = useLocation();
   if (!usuario) return null;
   const items = NAV_POR_ROL[usuario.rol];
-  const mostrarAvisoPassword = usuario.debeCambiarPassword && location.pathname !== "/cambiar-password";
+  const mostrarAvisoPassword =
+    usuario.debeCambiarPassword && location.pathname !== "/cambiar-password";
 
   return (
     <div className="flex h-screen overflow-hidden">
       <aside className="flex w-60 flex-none flex-col border-r border-border bg-surface px-4 py-6">
         <div className="mb-8 px-2">
-          <p className="text-sm font-semibold text-text">Residencias</p>
-          <p className="text-xs text-text-muted">Selección y evaluación</p>
+          <img
+            src="https://res.cloudinary.com/dkgnaegp9/image/upload/v1794516498/logo-ResidenciasCulturales2027_wymjuc.png"
+            alt="Residencias Culturales"
+            className="mb-3 h-10 w-auto"
+          />
         </div>
 
         <nav className="flex flex-1 flex-col gap-1">
@@ -55,7 +59,9 @@ export function AppShell() {
           <p className="px-2 text-sm font-medium text-text">
             {usuario.nombre} {usuario.apellido}
           </p>
-          <p className="px-2 text-xs text-text-muted">{ETIQUETA_ROL[usuario.rol]}</p>
+          <p className="px-2 text-xs text-text-muted">
+            {ETIQUETA_ROL[usuario.rol]}
+          </p>
           <Link
             to="/cambiar-password"
             className="mt-2 block w-full rounded-md px-3 py-2 text-left text-sm text-text-muted transition-colors duration-150 hover:bg-surface-muted hover:text-text"
@@ -79,7 +85,8 @@ export function AppShell() {
             className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-md border border-warning/30 bg-warning-soft px-4 py-3 text-sm text-text"
           >
             <span>
-              Tu contraseña es temporal (la generó el sistema). Te recomendamos cambiarla ahora por una propia.
+              Tu contraseña es temporal (la generó el sistema). Te recomendamos
+              cambiarla ahora por una propia.
             </span>
             <Link
               to="/cambiar-password"

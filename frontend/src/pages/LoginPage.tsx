@@ -36,8 +36,15 @@ export function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-bg px-4">
       <div className="w-full max-w-sm rounded-lg border border-border bg-surface p-8 shadow-sm">
-        <h1 className="mb-1 text-lg font-semibold text-text">Residencias</h1>
-        <p className="mb-6 text-sm text-text-muted">Selección y evaluación de postulantes</p>
+        <img
+          src="https://res.cloudinary.com/dkgnaegp9/image/upload/v1794516498/logo-ResidenciasCulturales2027_wymjuc.png"
+          alt="Residencias Culturales"
+          className="mx-auto mb-6 h-16 w-auto"
+        />
+        <h1 className="mb-1 text-lg font-semibold text-text">Ingreso</h1>
+        <p className="mb-6 text-sm text-text-muted">
+          Ingreso al sistema de evaluación de Residencias Culturales
+        </p>
 
         <form onSubmit={onSubmit} className="flex flex-col gap-4">
           <Input

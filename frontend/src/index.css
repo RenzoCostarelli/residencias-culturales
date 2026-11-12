@@ -13,8 +13,8 @@
   --color-text-muted: oklch(48% 0.012 95);
   --color-text-faint: oklch(62% 0.01 95);
 
-  --color-primary: oklch(42% 0.09 220);
-  --color-primary-hover: oklch(36% 0.09 220);
+  --color-primary: #3c3adc;
+  --color-primary-hover: #2e2cb1;
   --color-primary-soft: oklch(94% 0.025 220);
 
   --color-danger: oklch(55% 0.19 25);

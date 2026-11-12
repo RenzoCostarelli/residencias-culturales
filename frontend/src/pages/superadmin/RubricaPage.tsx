@@ -12,12 +12,20 @@ import type { CampoFormulario, TipoDatoCampo } from "../../types";
 
 export function RubricaPage() {
   const queryClient = useQueryClient();
-  const { data, isLoading } = useQuery({ queryKey: ["rubrica"], queryFn: listarCampos });
+  const { data, isLoading } = useQuery({
+    queryKey: ["rubrica"],
+    queryFn: listarCampos,
+  });
   const [modalAbierto, setModalAbierto] = useState(false);
 
   const actualizar = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof actualizarCampo>[1] }) =>
-      actualizarCampo(id, data),
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: Parameters<typeof actualizarCampo>[1];
+    }) => actualizarCampo(id, data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["rubrica"] }),
   });
 
@@ -46,16 +54,24 @@ export function RubricaPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-text">Rúbrica</h1>
-          <p className="text-sm text-text-muted">Criterios de evaluación y campos del formulario.</p>
+          <p className="text-sm text-text-muted">
+            Criterios de evaluación y campos del formulario.
+          </p>
         </div>
         <Button onClick={() => setModalAbierto(true)}>Nuevo campo</Button>
       </div>
 
-      <Card className={data?.esValida ? "border-success/30" : "border-warning/30"}>
+      <Card
+        className={data?.esValida ? "border-success/30" : "border-warning/30"}
+      >
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm text-text-muted">Suma de criterios evaluables activos</p>
-            <p className="text-2xl font-semibold text-text">{data?.sumaEvaluable} / 100</p>
+            <p className="text-sm text-text-muted">
+              Suma de criterios evaluables activos
+            </p>
+            <p className="text-2xl font-semibold text-text">
+              {data?.sumaEvaluable} / 100
+            </p>
           </div>
           <Badge tono={data?.esValida ? "success" : "warning"}>
             {data?.esValida ? "Rúbrica válida" : "No suma 100"}
@@ -81,9 +97,14 @@ export function RubricaPage() {
                 <FilaEvaluable
                   key={campo.id}
                   campo={campo}
-                  onGuardar={(puntajeMaximo) => actualizar.mutate({ id: campo.id, data: { puntajeMaximo } })}
+                  onGuardar={(puntajeMaximo) =>
+                    actualizar.mutate({ id: campo.id, data: { puntajeMaximo } })
+                  }
                   onToggleActivo={() =>
-                    actualizar.mutate({ id: campo.id, data: { activo: !campo.activo } })
+                    actualizar.mutate({
+                      id: campo.id,
+                      data: { activo: !campo.activo },
+                    })
                   }
                 />
               ))}
@@ -92,7 +113,7 @@ export function RubricaPage() {
         </Card>
       </section>
 
-      <section className="flex flex-col gap-3">
+      {/* <section className="flex flex-col gap-3">
         <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">
           Campos identificatorios ({identificatorios.length})
         </h2>
@@ -128,9 +149,13 @@ export function RubricaPage() {
             </div>
           </Card>
         )}
-      </section>
+      </section> */}
 
-      <Modal open={modalAbierto} title="Nuevo campo de rúbrica" onClose={() => setModalAbierto(false)}>
+      <Modal
+        open={modalAbierto}
+        title="Nuevo campo de rúbrica"
+        onClose={() => setModalAbierto(false)}
+      >
         <FormularioCampo
           enviando={crear.isPending}
           error={crear.error ? extraerMensajeError(crear.error) : null}
@@ -176,7 +201,9 @@ function FilaEvaluable({
       </td>
       <td className="px-5 py-3">
         <button type="button" onClick={onToggleActivo}>
-          <Badge tono={campo.activo ? "success" : "neutral"}>{campo.activo ? "Activo" : "Inactivo"}</Badge>
+          <Badge tono={campo.activo ? "success" : "neutral"}>
+            {campo.activo ? "Activo" : "Inactivo"}
+          </Badge>
         </button>
       </td>
     </tr>
@@ -190,19 +217,28 @@ function FilaIdentificatoria({
 }: {
   campo: CampoFormulario;
   evaluables: CampoFormulario[];
-  onGuardar: (cambios: { padreId: string | null; agrupador: string | null }) => void;
+  onGuardar: (cambios: {
+    padreId: string | null;
+    agrupador: string | null;
+  }) => void;
 }) {
   const [padreId, setPadreId] = useState(campo.padreId ?? "");
   const [agrupador, setAgrupador] = useState(campo.agrupador ?? "");
 
-  const cambio = padreId !== (campo.padreId ?? "") || agrupador !== (campo.agrupador ?? "");
+  const cambio =
+    padreId !== (campo.padreId ?? "") || agrupador !== (campo.agrupador ?? "");
 
   return (
     <tr className="border-b border-border last:border-0">
-      <td className="max-w-80 truncate px-5 py-3 text-text" title={campo.etiqueta}>
+      <td
+        className="max-w-80 truncate px-5 py-3 text-text"
+        title={campo.etiqueta}
+      >
         {campo.etiqueta}
       </td>
-      <td className="px-5 py-3 text-text-muted">{campo.rolEspecial ? "Rol especial" : campo.tipoDato}</td>
+      <td className="px-5 py-3 text-text-muted">
+        {campo.rolEspecial ? "Rol especial" : campo.tipoDato}
+      </td>
       <td className="px-5 py-3">
         <Select
           className="w-52"
@@ -230,7 +266,12 @@ function FilaIdentificatoria({
           {cambio && (
             <Button
               variante="ghost"
-              onClick={() => onGuardar({ padreId: padreId || null, agrupador: padreId ? agrupador.trim() || null : null })}
+              onClick={() =>
+                onGuardar({
+                  padreId: padreId || null,
+                  agrupador: padreId ? agrupador.trim() || null : null,
+                })
+              }
             >
               Guardar
             </Button>
@@ -273,7 +314,8 @@ function FormularioCampo({
           tipoDato: form.tipoDato,
           esIdentificatorio: form.tipo === "identificatorio",
           esEvaluable: form.tipo === "evaluable",
-          puntajeMaximo: form.tipo === "evaluable" ? Number(form.puntajeMaximo) : undefined,
+          puntajeMaximo:
+            form.tipo === "evaluable" ? Number(form.puntajeMaximo) : undefined,
         });
       }}
     >
@@ -286,7 +328,12 @@ function FormularioCampo({
       <Select
         label="Tipo de campo"
         value={form.tipo}
-        onChange={(e) => setForm({ ...form, tipo: e.target.value as "identificatorio" | "evaluable" })}
+        onChange={(e) =>
+          setForm({
+            ...form,
+            tipo: e.target.value as "identificatorio" | "evaluable",
+          })
+        }
       >
         <option value="identificatorio">Identificatorio (no se puntúa)</option>
         <option value="evaluable">Evaluable (criterio de rúbrica)</option>

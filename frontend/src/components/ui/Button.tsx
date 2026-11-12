@@ -14,10 +14,14 @@ const ESTILOS: Record<Variante, string> = {
   ghost: "text-text-muted hover:text-text hover:bg-surface-muted",
 };
 
-export function Button({ variante = "primary", className = "", ...props }: Props) {
+export function Button({
+  variante = "primary",
+  className = "",
+  ...props
+}: Props) {
   return (
     <button
-      className={`inline-flex items-center justify-center gap-2 rounded-md px-3.5 py-2 text-sm font-medium transition-colors duration-150 disabled:cursor-not-allowed ${ESTILOS[variante]} ${className}`}
+      className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-md px-3.5 py-2 text-sm font-medium transition-colors duration-150 disabled:cursor-not-allowed ${ESTILOS[variante]} ${className}`}
       {...props}
     />
   );
