@@ -1,10 +1,14 @@
 import { apiClient } from "./client";
 import type {
   EstadoDocumentoPreseleccion,
+  EstadoEvaluacionInscripto,
+  EstadoPreseleccion,
   EvaluacionCompanero,
   EvaluacionPropia,
   MiGrupo,
+  MiGrupoPreseleccion,
   PaginaAsignados,
+  PaginaAsignadosPreseleccion,
 } from "../types";
 
 export async function listarMisGrupos() {
@@ -12,8 +16,28 @@ export async function listarMisGrupos() {
   return res.data;
 }
 
-export async function listarAsignados(params: { grupoId?: string; page: number; pageSize: number }) {
+export async function listarAsignados(params: {
+  grupoId?: string;
+  page: number;
+  pageSize: number;
+  estado?: EstadoEvaluacionInscripto;
+}) {
   const res = await apiClient.get<PaginaAsignados>("/evaluaciones/asignados", { params });
+  return res.data;
+}
+
+export async function listarMisGruposPreseleccion() {
+  const res = await apiClient.get<MiGrupoPreseleccion[]>("/evaluaciones/mis-grupos-preseleccion");
+  return res.data;
+}
+
+export async function listarAsignadosPreseleccion(params: {
+  grupoId?: string;
+  page: number;
+  pageSize: number;
+  estado?: EstadoPreseleccion;
+}) {
+  const res = await apiClient.get<PaginaAsignadosPreseleccion>("/evaluaciones/asignados-preseleccion", { params });
   return res.data;
 }
 

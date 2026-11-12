@@ -3,19 +3,21 @@ import { useAuth } from "../../context/AuthContext";
 import { ETIQUETA_ROL } from "../../lib/etiquetas";
 import type { Rol } from "../../types";
 
-const MIS_EVALUACIONES = { to: "/evaluador", label: "Mis evaluaciones" };
+const MI_PRESELECCION = { to: "/preseleccion", label: "Preselección" };
+const MIS_EVALUACIONES = { to: "/evaluador", label: "Evaluaciones" };
 
-// Cualquier rol puede ser evaluador, así que "Mis evaluaciones" aparece para todos.
+// Cualquier rol puede ser evaluador, así que preselección/evaluaciones aparecen para todos.
 const NAV_POR_ROL: Record<Rol, { to: string; label: string }[]> = {
   SUPERADMIN: [
     { to: "/superadmin/usuarios", label: "Usuarios" },
-    { to: "/superadmin/grupos", label: "Zonas" },
-    { to: "/superadmin/rubrica", label: "Rúbrica" },
+    { to: "/grupos", label: "Zonas" },
+    // { to: "/superadmin/rubrica", label: "Rúbrica" },
     { to: "/superadmin/importaciones", label: "Importar Excel" },
+    MI_PRESELECCION,
     MIS_EVALUACIONES,
   ],
-  ADMIN_GRUPO: [{ to: "/admin-grupo", label: "Mi grupo" }, MIS_EVALUACIONES],
-  EVALUADOR: [MIS_EVALUACIONES],
+  ADMIN_GRUPO: [{ to: "/grupos", label: "Zonas" }, MI_PRESELECCION, MIS_EVALUACIONES],
+  EVALUADOR: [MI_PRESELECCION, MIS_EVALUACIONES],
 };
 
 export function AppShell() {
@@ -28,7 +30,7 @@ export function AppShell() {
 
   return (
     <div className="flex h-screen overflow-hidden">
-      <aside className="flex w-60 flex-none flex-col border-r border-border bg-surface px-4 py-6">
+      <aside className="flex w-60 flex-none flex-col border-r border-border  bg-neutral-50 px-4 py-6">
         <div className="mb-8 px-2">
           <img
             src="https://res.cloudinary.com/dkgnaegp9/image/upload/v1794516498/logo-ResidenciasCulturales2027_wymjuc.png"
@@ -43,9 +45,9 @@ export function AppShell() {
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `rounded-md px-3 py-2 text-sm font-medium transition-colors duration-150 ${
+                `rounded-md px-3 py-2 text-sm font-semibold transition-colors duration-150 ${
                   isActive
-                    ? "bg-primary-soft text-primary"
+                    ? "bg-[#f7cd46] text-neutral-900"
                     : "text-text-muted hover:bg-surface-muted hover:text-text"
                 }`
               }

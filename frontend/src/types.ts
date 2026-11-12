@@ -24,6 +24,14 @@ export type Grupo = {
   createdAt: string;
 };
 
+export type GrupoStats = {
+  inscriptos: number;
+  evaluadores: number;
+  evaluacionesRealizadas: number;
+};
+
+export type GrupoConStats = Grupo & { stats: GrupoStats };
+
 export type EstadoEvaluacionInscripto = "PENDIENTE" | "EN_PROGRESO" | "EVALUADO";
 export type ResultadoFinalInscripto = "PENDIENTE" | "ACEPTADO" | "RECHAZADO" | "LISTA_ESPERA";
 export type EstadoPreseleccion = "PENDIENTE" | "APROBADO" | "RECHAZADO";
@@ -200,7 +208,12 @@ export type StatsEvaluacion = {
   pendientes: number;
   aMedias: number;
   completadas: number;
-  rechazadosPreseleccion: number;
+};
+
+export type MisStats = {
+  asignados: number;
+  hechas: number;
+  quedan: number;
 };
 
 export type MiGrupo = {
@@ -208,6 +221,8 @@ export type MiGrupo = {
   nombre: string;
   descripcion: string | null;
   stats: StatsEvaluacion;
+  misStats: MisStats;
+  statsZona: GrupoStats;
 };
 
 export type InscriptoAsignado = {
@@ -215,7 +230,6 @@ export type InscriptoAsignado = {
   uid: string;
   nombreCompleto: string;
   lote: string | null;
-  estadoPreseleccion: EstadoPreseleccion;
   estadoGeneral: EstadoEvaluacionInscripto;
   miPuntaje: string | null;
   puntajeFinal: string | null;
@@ -227,6 +241,51 @@ export type PaginaAsignados = {
   page: number;
   pageSize: number;
   stats: StatsEvaluacion;
+};
+
+// ---- Preselección (página del evaluador) ----
+
+export type StatsPreseleccion = {
+  total: number;
+  pendientes: number;
+  aprobados: number;
+  rechazados: number;
+};
+
+export type MisStatsPreseleccion = {
+  asignados: number;
+  hechas: number;
+  quedan: number;
+};
+
+export type StatsZonaPreseleccion = {
+  inscriptos: number;
+  decididos: number;
+};
+
+export type MiGrupoPreseleccion = {
+  id: string;
+  nombre: string;
+  descripcion: string | null;
+  stats: StatsPreseleccion;
+  misStats: MisStatsPreseleccion;
+  statsZona: StatsZonaPreseleccion;
+};
+
+export type InscriptoAsignadoPreseleccion = {
+  id: string;
+  uid: string;
+  nombreCompleto: string;
+  lote: string | null;
+  estadoPreseleccion: EstadoPreseleccion;
+};
+
+export type PaginaAsignadosPreseleccion = {
+  items: InscriptoAsignadoPreseleccion[];
+  total: number;
+  page: number;
+  pageSize: number;
+  stats: StatsPreseleccion;
 };
 
 export type DocumentoPreseleccion = {

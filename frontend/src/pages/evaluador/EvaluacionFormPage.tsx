@@ -95,25 +95,37 @@ function RespuestasCriterio({ criterio }: { criterio: CriterioEvaluacion }) {
   const sinRespuesta = !criterio.respuestaInscripto && criterio.grupos.length === 0;
 
   return (
-    <div className="mt-2 flex flex-col gap-2">
+    <div className="mt-2 flex flex-col gap-3">
       {criterio.respuestaInscripto && (
         <p className="text-sm whitespace-pre-wrap text-text-muted">{criterio.respuestaInscripto}</p>
       )}
-      {criterio.grupos.map((g) => (
-        <div key={g.agrupador || "_"} className="rounded-md bg-surface-muted px-3 py-2">
-          {g.agrupador && (
-            <p className="text-xs font-semibold tracking-wide text-text-muted uppercase">{g.agrupador}</p>
-          )}
-          <dl className="mt-1 flex flex-col gap-1 text-sm">
-            {g.campos.map((c) => (
-              <div key={c.campoId}>
-                <dt className="inline font-medium text-text">{c.etiqueta}: </dt>
-                <dd className="inline whitespace-pre-wrap text-text-muted">{c.valor}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-      ))}
+      {criterio.grupos.map((g, i) => {
+        // Los agrupadores numerados ("Experiencia 1", "Experiencia con grupos 2") ya se
+        // distinguen por estar en bloques separados: repetir el número no agrega información,
+        // así que solo se muestra la etiqueta cuando el agrupador no es una simple numeración
+        // (ej. "Secundario" / "Terciario / Universitario" sí aportan y se mantienen).
+        const esNumerado = /\d\s*$/.test(g.agrupador ?? "");
+        return (
+          <div
+            key={g.agrupador || i}
+            className="rounded-md border-l-2 border-primary/40 bg-surface-muted px-3 py-2"
+          >
+            {g.agrupador && !esNumerado && (
+              <p className="mb-1 text-xs font-semibold tracking-wide text-text-muted uppercase">
+                {g.agrupador}
+              </p>
+            )}
+            <dl className="flex flex-col gap-1 text-sm">
+              {g.campos.map((c) => (
+                <div key={c.campoId}>
+                  <dt className="inline font-medium text-text">{c.etiqueta}: </dt>
+                  <dd className="inline whitespace-pre-wrap text-text-muted">{c.valor}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        );
+      })}
       {sinRespuesta && <p className="text-sm text-text-faint italic">Sin respuesta</p>}
     </div>
   );

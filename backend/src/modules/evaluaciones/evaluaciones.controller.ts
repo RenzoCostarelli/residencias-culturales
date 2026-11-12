@@ -1,9 +1,16 @@
 import { asyncHandler, AppError } from "../../shared/errors";
-import { asignadosQuerySchema, enviarEvaluacionSchema, preseleccionSchema } from "./evaluaciones.schemas";
+import {
+  asignadosPreseleccionQuerySchema,
+  asignadosQuerySchema,
+  enviarEvaluacionSchema,
+  preseleccionSchema,
+} from "./evaluaciones.schemas";
 import {
   enviarEvaluacion,
   listarAsignados,
+  listarAsignadosPreseleccion,
   listarMisGrupos,
+  listarMisGruposPreseleccion,
   obtenerEvaluacionCompanero,
   obtenerEvaluacionPropia,
   registrarPreseleccion,
@@ -23,6 +30,23 @@ export const listarAsignadosHandler = asyncHandler(async (req, res) => {
   }
   const query = asignadosQuerySchema.parse(req.query);
   const resultado = await listarAsignados(req.user.id, query);
+  res.json(resultado);
+});
+
+export const listarMisGruposPreseleccionHandler = asyncHandler(async (req, res) => {
+  if (!req.user) {
+    throw new AppError(401, "No autenticado");
+  }
+  const grupos = await listarMisGruposPreseleccion(req.user.id);
+  res.json(grupos);
+});
+
+export const listarAsignadosPreseleccionHandler = asyncHandler(async (req, res) => {
+  if (!req.user) {
+    throw new AppError(401, "No autenticado");
+  }
+  const query = asignadosPreseleccionQuerySchema.parse(req.query);
+  const resultado = await listarAsignadosPreseleccion(req.user.id, query);
   res.json(resultado);
 });
 

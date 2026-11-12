@@ -41,11 +41,8 @@ export function GrupoDetailPage() {
     <div className="flex flex-col gap-6">
       <div>
         {mostrarVolver && (
-          <Link
-            to={esSuperadmin ? "/superadmin/grupos" : "/admin-grupo"}
-            className="text-sm text-text-muted hover:text-text"
-          >
-            ← {esSuperadmin ? "Grupos" : "Mis grupos"}
+          <Link to="/grupos" className="text-sm text-text-muted hover:text-text">
+            ← Zonas
           </Link>
         )}
         <h1 className="mt-1 text-xl font-semibold text-text">{grupo?.nombre ?? "Grupo"}</h1>

@@ -10,15 +10,31 @@ const SELECT_USUARIO = {
   activo: true,
 } as const;
 
-export async function listarGrupos(usuario: { id: string; rol: RolUsuario }) {
-  if (usuario.rol === "SUPERADMIN") {
-    return prisma.grupo.findMany({ orderBy: { nombre: "asc" } });
-  }
+export type GrupoStats = {
+  inscriptos: number;
+  evaluadores: number;
+  evaluacionesRealizadas: number;
+};
 
-  return prisma.grupo.findMany({
-    where: { administradores: { some: { usuarioId: usuario.id } } },
-    orderBy: { nombre: "asc" },
-  });
+export async function calcularStatsGrupo(grupoId: string): Promise<GrupoStats> {
+  const [inscriptos, evaluadores, evaluacionesRealizadas] = await Promise.all([
+    prisma.inscripto.count({ where: { grupoId } }),
+    prisma.grupoEvaluador.count({ where: { grupoId } }),
+    prisma.evaluacion.count({ where: { inscripto: { grupoId } } }),
+  ]);
+  return { inscriptos, evaluadores, evaluacionesRealizadas };
+}
+
+export async function listarGrupos(usuario: { id: string; rol: RolUsuario }) {
+  const grupos =
+    usuario.rol === "SUPERADMIN"
+      ? await prisma.grupo.findMany({ orderBy: { nombre: "asc" } })
+      : await prisma.grupo.findMany({
+          where: { administradores: { some: { usuarioId: usuario.id } } },
+          orderBy: { nombre: "asc" },
+        });
+
+  return Promise.all(grupos.map(async (grupo) => ({ ...grupo, stats: await calcularStatsGrupo(grupo.id) })));
 }
 
 export async function crearGrupo(data: { nombre: string; descripcion?: string }, creadoPorId: string) {

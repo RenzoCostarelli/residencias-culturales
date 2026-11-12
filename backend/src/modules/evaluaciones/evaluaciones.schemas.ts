@@ -3,7 +3,15 @@ import { z } from "zod";
 export const asignadosQuerySchema = z.object({
   grupoId: z.string().uuid().optional(),
   page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  pageSize: z.coerce.number().int().min(1).max(100).default(13),
+  estado: z.enum(["PENDIENTE", "EN_PROGRESO", "EVALUADO"]).optional(),
+});
+
+export const asignadosPreseleccionQuerySchema = z.object({
+  grupoId: z.string().uuid().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(13),
+  estado: z.enum(["PENDIENTE", "APROBADO", "RECHAZADO"]).optional(),
 });
 
 export const preseleccionSchema = z.object({

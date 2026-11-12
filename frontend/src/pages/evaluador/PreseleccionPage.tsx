@@ -1,17 +1,28 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { enviarPreseleccion, obtenerEvaluacionPropia } from "../../api/evaluaciones";
+import {
+  enviarPreseleccion,
+  obtenerEvaluacionPropia,
+} from "../../api/evaluaciones";
 import { extraerMensajeError } from "../../api/client";
 import { formatearFecha, nombreCompleto } from "../../lib/etiquetas";
 import { Button } from "../../components/ui/Button";
 import { Input, Select, Textarea } from "../../components/ui/Input";
 import { Card } from "../../components/ui/Card";
-import { Badge, badgeEstadoDocumento, badgeEstadoPreseleccion } from "../../components/ui/Badge";
+import {
+  Badge,
+  badgeEstadoDocumento,
+  badgeEstadoPreseleccion,
+} from "../../components/ui/Badge";
 import { ConfirmModal } from "../../components/ui/ConfirmModal";
 import { Alerta, Spinner } from "../../components/ui/Feedback";
 import { SeccionDocumentos } from "./DocumentosInscripto";
-import type { DocumentoPreseleccion, EstadoDocumentoPreseleccion, EvaluacionPropia } from "../../types";
+import type {
+  DocumentoPreseleccion,
+  EstadoDocumentoPreseleccion,
+  EvaluacionPropia,
+} from "../../types";
 
 // Paso previo a la evaluación, en su propia pantalla: acá solo se valida la documentación,
 // nunca se muestran los criterios/preguntas de la evaluación.
@@ -27,14 +38,18 @@ export function PreseleccionPage() {
   });
 
   function onResuelto(resultado: "APROBADO" | "RECHAZADO") {
-    queryClient.invalidateQueries({ queryKey: ["evaluacion-mia", inscriptoId] });
+    queryClient.invalidateQueries({
+      queryKey: ["evaluacion-mia", inscriptoId],
+    });
     queryClient.invalidateQueries({ queryKey: ["asignados"] });
     queryClient.invalidateQueries({ queryKey: ["mis-grupos"] });
+    queryClient.invalidateQueries({ queryKey: ["asignados-preseleccion"] });
+    queryClient.invalidateQueries({ queryKey: ["mis-grupos-preseleccion"] });
     // Al rechazar no hay nada más que hacer acá, así que vuelve al listado. Al aprobar se queda en
     // esta misma pantalla (ahora en su variante "ya resuelta", con el botón para continuar): evita
     // saltar a la evaluación con datos todavía no refrescados y deja ver la confirmación.
     if (resultado === "RECHAZADO") {
-      navigate("/evaluador");
+      navigate("/preseleccion");
     }
   }
 
@@ -49,10 +64,15 @@ export function PreseleccionPage() {
   if (error || !data || !inscriptoId) {
     return (
       <div className="flex flex-col gap-4">
-        <Link to="/evaluador" className="text-sm text-text-muted hover:text-text">
-          ← Evaluaciones
+        <Link
+          to="/preseleccion"
+          className="text-sm text-text-muted hover:text-text"
+        >
+          ← Preselección
         </Link>
-        <Alerta>{extraerMensajeError(error, "No se pudo cargar el inscripto")}</Alerta>
+        <Alerta>
+          {extraerMensajeError(error, "No se pudo cargar el inscripto")}
+        </Alerta>
       </div>
     );
   }
@@ -62,18 +82,31 @@ export function PreseleccionPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <Link to="/evaluador" className="text-sm text-text-muted hover:text-text">
-          ← Evaluaciones
+        <Link
+          to="/preseleccion"
+          className="text-sm text-text-muted hover:text-text"
+        >
+          ← Preselección
         </Link>
-        <h1 className="mt-1 text-xl font-semibold text-text">{data.inscripto.nombreCompleto}</h1>
-        <p className="font-mono text-sm text-text-muted">{data.inscripto.uid}</p>
-        <p className="mt-1 text-sm font-medium text-text-muted">Preselección: validar documentación</p>
+        <h1 className="mt-1 text-xl font-semibold text-text">
+          {data.inscripto.nombreCompleto}
+        </h1>
+        <p className="font-mono text-sm text-text-muted">
+          {data.inscripto.uid}
+        </p>
+        <p className="mt-1 text-sm font-medium text-text-muted">
+          Preselección: validar documentación
+        </p>
       </div>
 
       <SeccionDocumentos documentos={pre.documentos} />
 
       {pre.estado === "PENDIENTE" ? (
-        <FormularioPreseleccion inscriptoId={inscriptoId} documentos={pre.documentos} onResuelto={onResuelto} />
+        <FormularioPreseleccion
+          inscriptoId={inscriptoId}
+          documentos={pre.documentos}
+          onResuelto={onResuelto}
+        />
       ) : (
         <ResumenPreseleccion data={data} />
       )}
@@ -81,7 +114,10 @@ export function PreseleccionPage() {
   );
 }
 
-const OPCIONES_DOCUMENTO: { valor: EstadoDocumentoPreseleccion; label: string }[] = [
+const OPCIONES_DOCUMENTO: {
+  valor: EstadoDocumentoPreseleccion;
+  label: string;
+}[] = [
   { valor: "CORRECTO", label: "Correcto" },
   { valor: "FALTANTE", label: "Faltante" },
   { valor: "INCORRECTO", label: "Incorrecto" },
@@ -99,11 +135,16 @@ function FormularioPreseleccion({
   // Ningún estado se precompleta solo, ni siquiera "Faltante" cuando no hay archivo subido: la
   // preselección es una revisión manual, el evaluador tiene que elegir explícitamente los tres
   // estados para cada documento (el sistema no decide nada por su cuenta).
-  const [estados, setEstados] = useState<Record<string, EstadoDocumentoPreseleccion | "">>(() =>
+  const [estados, setEstados] = useState<
+    Record<string, EstadoDocumentoPreseleccion | "">
+  >(() =>
     Object.fromEntries(documentos.map((d) => [d.campoId, d.estado ?? ""])),
   );
-  const [observaciones, setObservaciones] = useState<Record<string, string>>(() =>
-    Object.fromEntries(documentos.map((d) => [d.campoId, d.observacion ?? ""])),
+  const [observaciones, setObservaciones] = useState<Record<string, string>>(
+    () =>
+      Object.fromEntries(
+        documentos.map((d) => [d.campoId, d.observacion ?? ""]),
+      ),
   );
   const [resultado, setResultado] = useState<"APROBADO" | "RECHAZADO" | "">("");
   const [observacion, setObservacion] = useState("");
@@ -127,47 +168,61 @@ function FormularioPreseleccion({
       // Se escribe el resultado directamente en el caché en vez de esperar el refetch disparado por
       // invalidateQueries: si la página de evaluación llega a montar antes de que ese refetch
       // responda, leería el estado PENDIENTE viejo y rebotaría de nuevo para acá.
-      queryClient.setQueryData<EvaluacionPropia>(["evaluacion-mia", inscriptoId], (old) =>
-        old
-          ? {
-              ...old,
-              preseleccion: {
-                ...old.preseleccion,
-                estado: resuelto,
-                observacion: observacion.trim() || null,
-                documentos: old.preseleccion.documentos.map((d) => ({
-                  ...d,
-                  estado: (estados[d.campoId] as EstadoDocumentoPreseleccion) || d.estado,
-                  observacion: observaciones[d.campoId]?.trim() || d.observacion,
-                })),
-              },
-            }
-          : old,
+      queryClient.setQueryData<EvaluacionPropia>(
+        ["evaluacion-mia", inscriptoId],
+        (old) =>
+          old
+            ? {
+                ...old,
+                preseleccion: {
+                  ...old.preseleccion,
+                  estado: resuelto,
+                  observacion: observacion.trim() || null,
+                  documentos: old.preseleccion.documentos.map((d) => ({
+                    ...d,
+                    estado:
+                      (estados[d.campoId] as EstadoDocumentoPreseleccion) ||
+                      d.estado,
+                    observacion:
+                      observaciones[d.campoId]?.trim() || d.observacion,
+                  })),
+                },
+              }
+            : old,
       );
       onResuelto(resuelto);
     },
   });
 
   const documentosCompletos = documentos.every((d) => estados[d.campoId]);
-  const hayProblemas = documentos.some((d) => estados[d.campoId] && estados[d.campoId] !== "CORRECTO");
+  const hayProblemas = documentos.some(
+    (d) => estados[d.campoId] && estados[d.campoId] !== "CORRECTO",
+  );
   const completo =
-    documentosCompletos && resultado !== "" && (resultado !== "RECHAZADO" || observacion.trim() !== "");
+    documentosCompletos &&
+    resultado !== "" &&
+    (resultado !== "RECHAZADO" || observacion.trim() !== "");
 
   return (
     <Card className="flex flex-col gap-4 border-warning/30">
       <p className="text-sm text-text-muted">
-        Revisá cada archivo que subió el inscripto y marcá si es correcto, falta o no corresponde. La
-        evaluación se habilita recién cuando apruebes la documentación.
+        Revisá cada archivo que subió el inscripto y marcá si es correcto, falta
+        o no corresponde. La evaluación se habilita recién cuando apruebes la
+        documentación.
       </p>
 
       {documentos.length === 0 ? (
         <Alerta tipo="aviso">
-          No hay campos de archivo (URL) configurados en el formulario: podés aprobar directamente.
+          No hay campos de archivo (URL) configurados en el formulario: podés
+          aprobar directamente.
         </Alerta>
       ) : (
         <ul className="flex flex-col divide-y divide-border">
           {documentos.map((d) => (
-            <li key={d.campoId} className="grid gap-3 py-3 sm:grid-cols-[1fr_320px]">
+            <li
+              key={d.campoId}
+              className="grid gap-3 py-3 sm:grid-cols-[1fr_320px]"
+            >
               <div className="min-w-0">
                 <p className="text-sm font-medium text-text" title={d.etiqueta}>
                   {d.etiqueta}
@@ -182,7 +237,9 @@ function FormularioPreseleccion({
                     Abrir archivo ↗
                   </a>
                 ) : (
-                  <p className="text-sm text-text-faint italic">No subió archivo</p>
+                  <p className="text-sm text-text-faint italic">
+                    No subió archivo
+                  </p>
                 )}
               </div>
               <div className="flex flex-col gap-2">
@@ -192,7 +249,9 @@ function FormularioPreseleccion({
                   onChange={(e) =>
                     setEstados((prev) => ({
                       ...prev,
-                      [d.campoId]: e.target.value as EstadoDocumentoPreseleccion | "",
+                      [d.campoId]: e.target.value as
+                        | EstadoDocumentoPreseleccion
+                        | "",
                     }))
                   }
                 >
@@ -208,7 +267,10 @@ function FormularioPreseleccion({
                   placeholder="Observación (opcional)"
                   value={observaciones[d.campoId] ?? ""}
                   onChange={(e) =>
-                    setObservaciones((prev) => ({ ...prev, [d.campoId]: e.target.value }))
+                    setObservaciones((prev) => ({
+                      ...prev,
+                      [d.campoId]: e.target.value,
+                    }))
                   }
                 />
               </div>
@@ -218,7 +280,9 @@ function FormularioPreseleccion({
       )}
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="text-sm font-medium text-text">Resultado de la preselección</legend>
+        <legend className="text-sm font-medium text-text">
+          Resultado de la preselección
+        </legend>
         <label className="flex items-center gap-2 text-sm text-text">
           <input
             type="radio"
@@ -226,7 +290,8 @@ function FormularioPreseleccion({
             checked={resultado === "APROBADO"}
             onChange={() => setResultado("APROBADO")}
           />
-          Aprobar: la documentación está en condiciones, se habilita la evaluación
+          Aprobar: la documentación está en condiciones, se habilita la
+          evaluación
         </label>
         <label className="flex items-center gap-2 text-sm text-text">
           <input
@@ -241,14 +306,18 @@ function FormularioPreseleccion({
 
       {hayProblemas && resultado === "APROBADO" && (
         <Alerta tipo="aviso">
-          Marcaste documentos faltantes o incorrectos. Si igual aprobás, dejá constancia del motivo en la
-          observación.
+          Marcaste documentos faltantes o incorrectos. Si igual aprobás, dejá
+          constancia del motivo en la observación.
         </Alerta>
       )}
 
       <Textarea
         id="observacion-preseleccion"
-        label={resultado === "RECHAZADO" ? "Observación (obligatoria para rechazar)" : "Observación (opcional)"}
+        label={
+          resultado === "RECHAZADO"
+            ? "Observación (obligatoria para rechazar)"
+            : "Observación (opcional)"
+        }
         rows={3}
         value={observacion}
         onChange={(e) => setObservacion(e.target.value)}
@@ -262,13 +331,19 @@ function FormularioPreseleccion({
           disabled={!completo || enviar.isPending}
           onClick={() => setConfirmar(true)}
         >
-          {resultado === "RECHAZADO" ? "Rechazar inscripto" : "Aprobar documentación"}
+          {resultado === "RECHAZADO"
+            ? "Rechazar inscripto"
+            : "Aprobar documentación"}
         </Button>
       </div>
 
       <ConfirmModal
         open={confirmar}
-        title={resultado === "RECHAZADO" ? "Rechazar inscripto" : "Aprobar documentación"}
+        title={
+          resultado === "RECHAZADO"
+            ? "Rechazar inscripto"
+            : "Aprobar documentación"
+        }
         confirmLabel={resultado === "RECHAZADO" ? "Rechazar" : "Aprobar"}
         variante={resultado === "RECHAZADO" ? "danger" : "primary"}
         pending={enviar.isPending}
@@ -290,12 +365,16 @@ function ResumenPreseleccion({ data }: { data: EvaluacionPropia }) {
   const rechazado = preseleccion.estado === "RECHAZADO";
 
   return (
-    <Card className={`flex flex-col gap-4 ${rechazado ? "border-danger/30" : "border-success/30"}`}>
+    <Card
+      className={`flex flex-col gap-4 ${rechazado ? "border-danger/30" : "border-success/30"}`}
+    >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="font-medium text-text">Preselección</p>
           <p className="text-sm text-text-muted">
-            {preseleccion.por ? `Validada por ${nombreCompleto(preseleccion.por)}` : "Validada"}
+            {preseleccion.por
+              ? `Validada por ${nombreCompleto(preseleccion.por)}`
+              : "Validada"}
             {preseleccion.at ? ` el ${formatearFecha(preseleccion.at)}` : ""}
           </p>
         </div>
@@ -304,7 +383,8 @@ function ResumenPreseleccion({ data }: { data: EvaluacionPropia }) {
 
       {preseleccion.observacion && (
         <p className="text-sm whitespace-pre-wrap text-text">
-          <span className="font-medium">Observación:</span> {preseleccion.observacion}
+          <span className="font-medium">Observación:</span>{" "}
+          {preseleccion.observacion}
         </p>
       )}
 
@@ -313,11 +393,17 @@ function ResumenPreseleccion({ data }: { data: EvaluacionPropia }) {
           {preseleccion.documentos.map((d) => {
             const estado = d.estado ? badgeEstadoDocumento(d.estado) : null;
             return (
-              <li key={d.campoId} className="flex items-center justify-between gap-3 text-sm">
+              <li
+                key={d.campoId}
+                className="flex items-center justify-between gap-3 text-sm"
+              >
                 <span className="truncate text-text-muted" title={d.etiqueta}>
                   {d.etiqueta}
                 </span>
-                <Badge tono={estado?.tono ?? "neutral"} title={d.observacion ?? undefined}>
+                <Badge
+                  tono={estado?.tono ?? "neutral"}
+                  title={d.observacion ?? undefined}
+                >
                   {estado?.label ?? "Sin validar"}
                 </Badge>
               </li>
@@ -326,14 +412,14 @@ function ResumenPreseleccion({ data }: { data: EvaluacionPropia }) {
         </ul>
       )}
 
-      {rechazado ? (
-        <p className="text-sm text-danger">
-          El inscripto no se evalúa. Un administrador del grupo puede reabrir la preselección si corresponde.
-        </p>
-      ) : (
+      {!rechazado && (
         <div className="flex justify-end">
           <Link to={`/evaluador/inscriptos/${data.inscripto.id}`}>
-            <Button type="button">{data.evaluacion ? "Ver evaluación" : "Continuar con la evaluación"}</Button>
+            <Button type="button">
+              {data.evaluacion
+                ? "Ver evaluación"
+                : "Continuar con la evaluación"}
+            </Button>
           </Link>
         </div>
       )}

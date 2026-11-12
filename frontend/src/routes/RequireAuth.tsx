@@ -28,7 +28,7 @@ export function HomeRedirect() {
     case "SUPERADMIN":
       return <Navigate to="/superadmin/usuarios" replace />;
     case "ADMIN_GRUPO":
-      return <Navigate to="/admin-grupo" replace />;
+      return <Navigate to="/grupos" replace />;
     case "EVALUADOR":
       return <Navigate to="/evaluador" replace />;
   }

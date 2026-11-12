@@ -3,7 +3,9 @@ import { requireAuth } from "../../middlewares/requireAuth";
 import {
   enviarEvaluacionHandler,
   listarAsignadosHandler,
+  listarAsignadosPreseleccionHandler,
   listarMisGruposHandler,
+  listarMisGruposPreseleccionHandler,
   obtenerCompaneroHandler,
   obtenerMiaHandler,
   registrarPreseleccionHandler,
@@ -16,6 +18,8 @@ evaluacionesRouter.use(requireAuth);
 
 evaluacionesRouter.get("/mis-grupos", listarMisGruposHandler);
 evaluacionesRouter.get("/asignados", listarAsignadosHandler);
+evaluacionesRouter.get("/mis-grupos-preseleccion", listarMisGruposPreseleccionHandler);
+evaluacionesRouter.get("/asignados-preseleccion", listarAsignadosPreseleccionHandler);
 evaluacionesRouter.get("/:inscriptoId/mia", obtenerMiaHandler);
 evaluacionesRouter.post("/:inscriptoId/preseleccion", registrarPreseleccionHandler);
 evaluacionesRouter.post("/:inscriptoId/mia", enviarEvaluacionHandler);

@@ -2,6 +2,7 @@ import { apiClient } from "./client";
 import type {
   EvaluadorDeGrupo,
   Grupo,
+  GrupoConStats,
   Inscripto,
   ParEvaluadores,
   ResultadoLote,
@@ -9,7 +10,7 @@ import type {
 } from "../types";
 
 export async function listarGrupos() {
-  const res = await apiClient.get<Grupo[]>("/grupos");
+  const res = await apiClient.get<GrupoConStats[]>("/grupos");
   return res.data;
 }
 
