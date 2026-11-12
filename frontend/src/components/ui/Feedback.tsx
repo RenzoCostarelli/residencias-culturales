@@ -27,10 +27,22 @@ export function EmptyState({ titulo, descripcion }: { titulo: string; descripcio
   );
 }
 
-export function Alerta({ tipo = "error", children }: { tipo?: "error" | "exito"; children: ReactNode }) {
-  const estilos =
-    tipo === "error"
-      ? "bg-danger-soft text-danger border-danger/20"
-      : "bg-success-soft text-success border-success/20";
-  return <div className={`rounded-md border px-3 py-2 text-sm ${estilos}`}>{children}</div>;
+const ESTILOS_ALERTA = {
+  error: "bg-danger-soft text-danger border-danger/20",
+  exito: "bg-success-soft text-success border-success/20",
+  aviso: "bg-warning-soft text-text border-warning/30",
+};
+
+export function Alerta({
+  tipo = "error",
+  children,
+}: {
+  tipo?: keyof typeof ESTILOS_ALERTA;
+  children: ReactNode;
+}) {
+  return (
+    <div role={tipo === "error" ? "alert" : "status"} className={`rounded-md border px-3 py-2 text-sm ${ESTILOS_ALERTA[tipo]}`}>
+      {children}
+    </div>
+  );
 }

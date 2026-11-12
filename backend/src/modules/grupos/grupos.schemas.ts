@@ -13,3 +13,7 @@ export const actualizarGrupoSchema = z.object({
 export const administradorGrupoSchema = z.object({
   usuarioId: z.string().uuid(),
 });
+
+export const evaluadorGrupoSchema = z.object({
+  usuarioId: z.string().uuid(),
+});

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import { requireAuth } from "../../middlewares/requireAuth";
-import { loginHandler, meHandler } from "./auth.controller";
+import { cambiarPasswordHandler, loginHandler, meHandler } from "./auth.controller";
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -15,3 +15,4 @@ export const authRouter = Router();
 
 authRouter.post("/login", loginLimiter, loginHandler);
 authRouter.get("/me", requireAuth, meHandler);
+authRouter.post("/cambiar-password", requireAuth, cambiarPasswordHandler);

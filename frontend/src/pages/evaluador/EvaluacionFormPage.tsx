@@ -1,95 +1,43 @@
-import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useState } from "react";
+import { Link, Navigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  completarEvaluacion,
-  guardarBorrador,
-  obtenerEvaluacionCompanero,
-  obtenerEvaluacionPropia,
-} from "../../api/evaluaciones";
+import { enviarEvaluacion, obtenerEvaluacionCompanero, obtenerEvaluacionPropia } from "../../api/evaluaciones";
 import { extraerMensajeError } from "../../api/client";
-import { urlMiniaturaDrive } from "../../lib/drive";
+import { formatearFecha, nombreCompleto } from "../../lib/etiquetas";
 import { Button } from "../../components/ui/Button";
 import { Select, Textarea } from "../../components/ui/Input";
 import { Card } from "../../components/ui/Card";
+import { Badge, badgeEstadoPreseleccion } from "../../components/ui/Badge";
+import { ConfirmModal } from "../../components/ui/ConfirmModal";
 import { Alerta, Spinner } from "../../components/ui/Feedback";
-import type { DocumentoInscripto } from "../../types";
+import { SeccionDocumentos } from "./DocumentosInscripto";
+import type { CriterioEvaluacion, EvaluacionPropia } from "../../types";
 
 function opcionesPuntaje(maximo: number): string[] {
   const max = Math.max(0, Math.round(maximo));
   return Array.from({ length: max + 1 }, (_, i) => String(i));
 }
 
+// Pantalla dedicada a la evaluación en sí: asume que la preselección ya está aprobada
+// (si no lo está, redirige a esa pantalla, que es la única que muestra la validación de documentos).
 export function EvaluacionFormPage() {
   const { inscriptoId } = useParams<{ inscriptoId: string }>();
   const queryClient = useQueryClient();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["evaluacion-mia", inscriptoId],
     queryFn: () => obtenerEvaluacionPropia(inscriptoId!),
     enabled: !!inscriptoId,
   });
 
-  const [puntajes, setPuntajes] = useState<Record<string, string>>({});
-  const [comentarios, setComentarios] = useState<Record<string, string>>({});
-  const [comentarioGeneral, setComentarioGeneral] = useState("");
+  const invalidarTodo = () => {
+    queryClient.invalidateQueries({ queryKey: ["evaluacion-mia", inscriptoId] });
+    queryClient.invalidateQueries({ queryKey: ["companero", inscriptoId] });
+    queryClient.invalidateQueries({ queryKey: ["asignados"] });
+    queryClient.invalidateQueries({ queryKey: ["mis-grupos"] });
+  };
 
-  useEffect(() => {
-    if (!data) return;
-    setPuntajes(
-      Object.fromEntries(
-        data.criterios.map((c) => [c.campoId, c.puntajeAsignado ?? ""]),
-      ),
-    );
-    setComentarios(
-      Object.fromEntries(
-        data.criterios.map((c) => [c.campoId, c.comentario ?? ""]),
-      ),
-    );
-    setComentarioGeneral(data.comentarioGeneral ?? "");
-  }, [data]);
-
-  const construirBorrador = () => ({
-    puntajes: Object.entries(puntajes)
-      .filter(([, v]) => v !== "")
-      .map(([campoId, v]) => ({
-        campoId,
-        puntaje: Number(v),
-        comentario: comentarios[campoId] || undefined,
-      })),
-    comentarioGeneral: comentarioGeneral || undefined,
-  });
-
-  const guardar = useMutation({
-    mutationFn: () => guardarBorrador(inscriptoId!, construirBorrador()),
-    onSuccess: () =>
-      queryClient.invalidateQueries({
-        queryKey: ["evaluacion-mia", inscriptoId],
-      }),
-  });
-
-  const completar = useMutation({
-    mutationFn: async () => {
-      await guardarBorrador(inscriptoId!, construirBorrador());
-      return completarEvaluacion(inscriptoId!);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["evaluacion-mia", inscriptoId],
-      });
-      queryClient.invalidateQueries({ queryKey: ["companero", inscriptoId] });
-      queryClient.invalidateQueries({ queryKey: ["asignados"] });
-    },
-  });
-
-  const companero = useQuery({
-    queryKey: ["companero", inscriptoId],
-    queryFn: () => obtenerEvaluacionCompanero(inscriptoId!),
-    enabled: !!inscriptoId && data?.estado === "COMPLETA",
-    retry: false,
-  });
-
-  if (isLoading || !data) {
+  if (isLoading) {
     return (
       <div className="flex justify-center py-12">
         <Spinner />
@@ -97,220 +45,266 @@ export function EvaluacionFormPage() {
     );
   }
 
-  const esCompleta = data.estado === "COMPLETA";
-  const total = Object.values(puntajes).reduce(
-    (acc, v) => acc + (Number(v) || 0),
-    0,
-  );
+  if (error || !data || !inscriptoId) {
+    return (
+      <div className="flex flex-col gap-4">
+        <Link to="/evaluador" className="text-sm text-text-muted hover:text-text">
+          ← Evaluaciones
+        </Link>
+        <Alerta>{extraerMensajeError(error, "No se pudo cargar el inscripto")}</Alerta>
+      </div>
+    );
+  }
+
+  const pre = data.preseleccion;
+
+  if (pre.estado !== "APROBADO") {
+    return <Navigate to={`/evaluador/inscriptos/${inscriptoId}/preseleccion`} replace />;
+  }
+
+  const badgePre = badgeEstadoPreseleccion(pre.estado);
 
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <Link
-          to="/evaluador"
-          className="text-sm text-text-muted hover:text-text"
-        >
+        <Link to="/evaluador" className="text-sm text-text-muted hover:text-text">
           ← Evaluaciones
         </Link>
-        <h1 className="mt-1 text-xl font-semibold text-text">
-          {data.inscripto.nombreCompleto}
-        </h1>
-        <p className="text-sm text-text-muted">{data.inscripto.uid}</p>
+        <h1 className="mt-1 text-xl font-semibold text-text">{data.inscripto.nombreCompleto}</h1>
+        <p className="font-mono text-sm text-text-muted">{data.inscripto.uid}</p>
+        <p className="mt-2 text-sm text-text-muted">
+          Preselección: <Badge tono={badgePre.tono}>{badgePre.label}</Badge>{" "}
+          <Link to={`/evaluador/inscriptos/${inscriptoId}/preseleccion`} className="text-primary hover:underline">
+            ver detalle
+          </Link>
+        </p>
       </div>
 
-      {esCompleta && (
-        <Alerta tipo="exito">
-          Ya completaste esta evaluación. Puntaje total: {data.puntajeTotal}
-        </Alerta>
+      <SeccionDocumentos documentos={pre.documentos} />
+
+      {data.evaluacion ? (
+        <EvaluacionEnviada data={data} inscriptoId={inscriptoId} />
+      ) : (
+        <FormularioEvaluacion data={data} inscriptoId={inscriptoId} onEnviada={invalidarTodo} />
       )}
+    </div>
+  );
+}
 
-      <SeccionDocumentos documentos={data.documentos} />
+function RespuestasCriterio({ criterio }: { criterio: CriterioEvaluacion }) {
+  const sinRespuesta = !criterio.respuestaInscripto && criterio.grupos.length === 0;
 
-      <div className="flex flex-col gap-4">
-        {data.criterios.map((c) => (
-          <Card key={c.campoId}>
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <p className="font-medium text-text">{c.etiqueta}</p>
-                <p className="mt-1 whitespace-pre-wrap text-sm text-text-muted">
-                  {c.respuestaInscripto || (
-                    <span className="text-text-faint italic">
-                      Sin respuesta
-                    </span>
-                  )}
-                </p>
+  return (
+    <div className="mt-2 flex flex-col gap-2">
+      {criterio.respuestaInscripto && (
+        <p className="text-sm whitespace-pre-wrap text-text-muted">{criterio.respuestaInscripto}</p>
+      )}
+      {criterio.grupos.map((g) => (
+        <div key={g.agrupador || "_"} className="rounded-md bg-surface-muted px-3 py-2">
+          {g.agrupador && (
+            <p className="text-xs font-semibold tracking-wide text-text-muted uppercase">{g.agrupador}</p>
+          )}
+          <dl className="mt-1 flex flex-col gap-1 text-sm">
+            {g.campos.map((c) => (
+              <div key={c.campoId}>
+                <dt className="inline font-medium text-text">{c.etiqueta}: </dt>
+                <dd className="inline whitespace-pre-wrap text-text-muted">{c.valor}</dd>
               </div>
-              <div className="w-28 flex-none">
-                <Select
-                  disabled={esCompleta}
-                  value={puntajes[c.campoId] ?? ""}
-                  onChange={(e) =>
-                    setPuntajes((p) => ({ ...p, [c.campoId]: e.target.value }))
-                  }
-                  className="disabled:bg-surface-muted"
-                >
-                  <option value="">—</option>
-                  {opcionesPuntaje(Number(c.puntajeMaximo)).map((valor) => (
-                    <option key={valor} value={valor}>
-                      {valor}
-                    </option>
-                  ))}
-                </Select>
-                <p className="mt-1 text-right text-xs text-text-faint">
-                  máx. {c.puntajeMaximo}
-                </p>
-              </div>
-            </div>
-          </Card>
-        ))}
+            ))}
+          </dl>
+        </div>
+      ))}
+      {sinRespuesta && <p className="text-sm text-text-faint italic">Sin respuesta</p>}
+    </div>
+  );
+}
+
+function FormularioEvaluacion({
+  data,
+  inscriptoId,
+  onEnviada,
+}: {
+  data: EvaluacionPropia;
+  inscriptoId: string;
+  onEnviada: () => void;
+}) {
+  const [puntajes, setPuntajes] = useState<Record<string, string>>({});
+  const [comentarioGeneral, setComentarioGeneral] = useState("");
+  const [confirmar, setConfirmar] = useState(false);
+
+  const enviar = useMutation({
+    mutationFn: () =>
+      enviarEvaluacion(inscriptoId, {
+        puntajes: data.criterios.map((c) => ({ campoId: c.campoId, puntaje: Number(puntajes[c.campoId]) })),
+        comentarioGeneral: comentarioGeneral.trim() || undefined,
+      }),
+    onSuccess: () => {
+      setConfirmar(false);
+      onEnviada();
+    },
+  });
+
+  const faltantes = data.criterios.filter((c) => !puntajes[c.campoId] && puntajes[c.campoId] !== "0");
+  const total = data.criterios.reduce((acc, c) => acc + (Number(puntajes[c.campoId]) || 0), 0);
+
+  return (
+    <section className="flex flex-col gap-4">
+      <div>
+        <h2 className="font-medium text-text">Evaluación</h2>
+        <p className="text-sm text-text-muted">
+          Puntuá todos los criterios. La evaluación se envía completa de una sola vez y no se puede
+          modificar después.
+        </p>
       </div>
+
+      {data.criterios.map((c) => (
+        <Card key={c.campoId}>
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-text">{c.etiqueta}</p>
+              <RespuestasCriterio criterio={c} />
+            </div>
+            <div className="w-28 flex-none">
+              <Select
+                aria-label={`Puntaje de ${c.etiqueta}`}
+                required
+                value={puntajes[c.campoId] ?? ""}
+                onChange={(e) => setPuntajes((p) => ({ ...p, [c.campoId]: e.target.value }))}
+              >
+                <option value="">—</option>
+                {opcionesPuntaje(Number(c.puntajeMaximo)).map((valor) => (
+                  <option key={valor} value={valor}>
+                    {valor}
+                  </option>
+                ))}
+              </Select>
+              <p className="mt-1 text-right text-xs text-text-faint">máx. {c.puntajeMaximo}</p>
+            </div>
+          </div>
+        </Card>
+      ))}
 
       <Textarea
+        id="comentario-general"
         label="Comentario general (opcional)"
-        disabled={esCompleta}
+        rows={3}
         value={comentarioGeneral}
         onChange={(e) => setComentarioGeneral(e.target.value)}
       />
 
       <div className="flex items-center justify-between rounded-lg border border-border bg-surface px-5 py-3">
         <p className="text-sm text-text-muted">Puntaje total</p>
-        <p className="text-lg font-semibold text-text">{total} / 100</p>
+        <p className="text-lg font-semibold text-text">
+          {total} / {data.puntajeMaximoTotal}
+        </p>
       </div>
 
-      {!esCompleta && (
-        <div className="flex items-center justify-end gap-3">
-          {(guardar.error || completar.error) && (
-            <Alerta>
-              {extraerMensajeError(guardar.error ?? completar.error)}
-            </Alerta>
-          )}
-          <Button
-            variante="secondary"
-            onClick={() => guardar.mutate()}
-            disabled={guardar.isPending}
-          >
-            {guardar.isPending ? "Guardando..." : "Guardar borrador"}
-          </Button>
-          <Button
-            onClick={() => completar.mutate()}
-            disabled={completar.isPending}
-          >
-            {completar.isPending ? "Completando..." : "Completar evaluación"}
-          </Button>
-        </div>
-      )}
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        {enviar.error && <Alerta>{extraerMensajeError(enviar.error)}</Alerta>}
+        {faltantes.length > 0 && (
+          <p className="text-sm text-text-muted">
+            Faltan puntuar {faltantes.length} criterio{faltantes.length === 1 ? "" : "s"}
+          </p>
+        )}
+        <Button type="button" disabled={faltantes.length > 0 || enviar.isPending} onClick={() => setConfirmar(true)}>
+          Enviar evaluación
+        </Button>
+      </div>
 
-      {esCompleta && (
-        <section className="flex flex-col gap-3">
-          <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">
-            Evaluación del compañero
-          </h2>
-          {companero.isLoading ? (
-            <Spinner />
-          ) : companero.isError ? (
-            <Card>
-              <p className="text-sm text-text-muted">
-                Todavía no está disponible: hace falta que tu compañero de par
-                complete su evaluación.
-              </p>
-            </Card>
-          ) : (
-            <Card>
-              <p className="mb-3 text-sm text-text-muted">
-                Puntaje total del compañero:{" "}
-                <span className="font-semibold text-text">
-                  {companero.data?.puntajeTotal}
-                </span>
-              </p>
-              <ul className="flex flex-col gap-2">
-                {companero.data?.detalles.map((d) => (
-                  <li key={d.campoId} className="flex justify-between text-sm">
-                    <span className="text-text-muted">{d.campo.etiqueta}</span>
-                    <span className="text-text">{d.puntaje}</span>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          )}
-        </section>
-      )}
-    </div>
+      <ConfirmModal
+        open={confirmar}
+        title="Enviar evaluación"
+        confirmLabel="Enviar"
+        pending={enviar.isPending}
+        error={enviar.error ? extraerMensajeError(enviar.error) : null}
+        onConfirm={() => enviar.mutate()}
+        onClose={() => setConfirmar(false)}
+      >
+        Vas a enviar la evaluación de <strong>{data.inscripto.nombreCompleto}</strong> con un puntaje total de{" "}
+        <strong>
+          {total} / {data.puntajeMaximoTotal}
+        </strong>
+        . Una vez enviada no se puede modificar.
+      </ConfirmModal>
+    </section>
   );
 }
 
-function SeccionDocumentos({
-  documentos,
-}: {
-  documentos: DocumentoInscripto[];
-}) {
-  if (!documentos.length) {
-    return null;
-  }
-
-  const foto = documentos.find((d) => d.esFoto);
-  const otros = documentos.filter((d) => !d.esFoto);
-  console.log("foto", foto);
+function EvaluacionEnviada({ data, inscriptoId }: { data: EvaluacionPropia; inscriptoId: string }) {
+  const companero = useQuery({
+    queryKey: ["companero", inscriptoId],
+    queryFn: () => obtenerEvaluacionCompanero(inscriptoId),
+    retry: false,
+  });
+  const evaluacion = data.evaluacion!;
 
   return (
-    <Card>
-      <div className="flex flex-wrap items-start gap-6">
-        {foto && <FotoInscripto documento={foto} />}
-        {otros.length > 0 && (
-          <div className="flex flex-col gap-2">
-            <p className="text-sm font-medium text-text">Documentos adjuntos</p>
-            <ul className="flex flex-col gap-1">
-              {otros.map((d) => (
-                <li key={d.campoId}>
-                  <a
-                    href={d.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-sm text-primary hover:underline"
-                  >
-                    {d.etiqueta} ↗
-                  </a>
+    <section className="flex flex-col gap-4">
+      <Alerta tipo="exito">
+        Enviaste tu evaluación el {formatearFecha(evaluacion.fechaCompletada)}. Puntaje total:{" "}
+        <strong>
+          {evaluacion.puntajeTotal} / {data.puntajeMaximoTotal}
+        </strong>
+        {data.inscripto.puntajeFinal && (
+          <>
+            {" "}
+            · Promedio del par: <strong>{data.inscripto.puntajeFinal}</strong>
+          </>
+        )}
+      </Alerta>
+
+      {data.criterios.map((c) => (
+        <Card key={c.campoId}>
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-text">{c.etiqueta}</p>
+              <RespuestasCriterio criterio={c} />
+            </div>
+            <div className="w-28 flex-none text-right">
+              <p className="text-lg font-semibold text-text">{c.puntajeAsignado ?? "—"}</p>
+              <p className="text-xs text-text-faint">máx. {c.puntajeMaximo}</p>
+            </div>
+          </div>
+        </Card>
+      ))}
+
+      {evaluacion.comentarioGeneral && (
+        <Card>
+          <p className="text-sm font-medium text-text">Comentario general</p>
+          <p className="mt-1 text-sm whitespace-pre-wrap text-text-muted">{evaluacion.comentarioGeneral}</p>
+        </Card>
+      )}
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-semibold tracking-wide text-text-muted uppercase">Evaluación del compañero</h2>
+        {companero.isLoading ? (
+          <Spinner />
+        ) : companero.isError || !companero.data ? (
+          <Card>
+            <p className="text-sm text-text-muted">
+              Todavía no está disponible: hace falta que tu compañero de par envíe su evaluación.
+            </p>
+          </Card>
+        ) : (
+          <Card>
+            <p className="mb-3 text-sm text-text-muted">
+              {nombreCompleto(companero.data.evaluador)} · puntaje total:{" "}
+              <span className="font-semibold text-text">{companero.data.puntajeTotal}</span>
+            </p>
+            <ul className="flex flex-col gap-2">
+              {companero.data.detalles.map((d) => (
+                <li key={d.campoId} className="flex justify-between text-sm">
+                  <span className="text-text-muted">{d.campo.etiqueta}</span>
+                  <span className="text-text">{d.puntaje}</span>
                 </li>
               ))}
             </ul>
-          </div>
+            {companero.data.comentarioGeneral && (
+              <p className="mt-3 text-sm whitespace-pre-wrap text-text-muted">{companero.data.comentarioGeneral}</p>
+            )}
+          </Card>
         )}
-      </div>
-    </Card>
-  );
-}
-
-function FotoInscripto({ documento }: { documento: DocumentoInscripto }) {
-  const [error, setError] = useState(false);
-  const miniatura = urlMiniaturaDrive(documento.url);
-  console.log("miniatura", miniatura);
-  console.log("error", error);
-
-  if (error || !miniatura) {
-    return (
-      <a
-        href={documento.url}
-        target="_blank"
-        rel="noreferrer"
-        className="text-sm text-primary hover:underline"
-      >
-        Ver {documento.etiqueta} ↗
-      </a>
-    );
-  }
-
-  return (
-    <a
-      href={documento.url}
-      target="_blank"
-      rel="noreferrer"
-      className="flex-none"
-    >
-      <img
-        src={miniatura}
-        alt={documento.etiqueta}
-        onError={() => setError(true)}
-        className="h-32 w-32 rounded-md border border-border object-cover"
-      />
-    </a>
+      </section>
+    </section>
   );
 }

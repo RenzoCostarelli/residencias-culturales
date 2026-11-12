@@ -1,8 +1,19 @@
 import { apiClient } from "./client";
-import type { EvaluacionCompanero, EvaluacionPropia, InscriptoAsignado } from "../types";
+import type {
+  EstadoDocumentoPreseleccion,
+  EvaluacionCompanero,
+  EvaluacionPropia,
+  MiGrupo,
+  PaginaAsignados,
+} from "../types";
 
-export async function listarAsignados() {
-  const res = await apiClient.get<InscriptoAsignado[]>("/evaluaciones/asignados");
+export async function listarMisGrupos() {
+  const res = await apiClient.get<MiGrupo[]>("/evaluaciones/mis-grupos");
+  return res.data;
+}
+
+export async function listarAsignados(params: { grupoId?: string; page: number; pageSize: number }) {
+  const res = await apiClient.get<PaginaAsignados>("/evaluaciones/asignados", { params });
   return res.data;
 }
 
@@ -11,19 +22,24 @@ export async function obtenerEvaluacionPropia(inscriptoId: string) {
   return res.data;
 }
 
-export async function guardarBorrador(
+export async function enviarPreseleccion(
   inscriptoId: string,
   data: {
-    puntajes: { campoId: string; puntaje: number; comentario?: string }[];
-    comentarioGeneral?: string;
+    documentos: { campoId: string; estado: EstadoDocumentoPreseleccion; observacion?: string }[];
+    resultado: "APROBADO" | "RECHAZADO";
+    observacion?: string;
   },
 ) {
-  const res = await apiClient.put(`/evaluaciones/${inscriptoId}/mia`, data);
+  const res = await apiClient.post(`/evaluaciones/${inscriptoId}/preseleccion`, data);
   return res.data;
 }
 
-export async function completarEvaluacion(inscriptoId: string) {
-  const res = await apiClient.post(`/evaluaciones/${inscriptoId}/mia/completar`);
+// Envío único y definitivo: no hay borradores.
+export async function enviarEvaluacion(
+  inscriptoId: string,
+  data: { puntajes: { campoId: string; puntaje: number }[]; comentarioGeneral?: string },
+) {
+  const res = await apiClient.post(`/evaluaciones/${inscriptoId}/mia`, data);
   return res.data;
 }
 

@@ -1,19 +1,22 @@
 import { Router } from "express";
 import { requireAuth } from "../../middlewares/requireAuth";
-import { requireRole } from "../../middlewares/requireRole";
 import {
-  completarHandler,
-  guardarBorradorHandler,
+  enviarEvaluacionHandler,
   listarAsignadosHandler,
+  listarMisGruposHandler,
   obtenerCompaneroHandler,
   obtenerMiaHandler,
+  registrarPreseleccionHandler,
 } from "./evaluaciones.controller";
 
+// Cualquier rol puede evaluar: la autorización real es "integra el par asignado al inscripto",
+// y la resuelve el servicio en cada operación.
 export const evaluacionesRouter = Router();
-evaluacionesRouter.use(requireAuth, requireRole("EVALUADOR"));
+evaluacionesRouter.use(requireAuth);
 
+evaluacionesRouter.get("/mis-grupos", listarMisGruposHandler);
 evaluacionesRouter.get("/asignados", listarAsignadosHandler);
 evaluacionesRouter.get("/:inscriptoId/mia", obtenerMiaHandler);
-evaluacionesRouter.put("/:inscriptoId/mia", guardarBorradorHandler);
-evaluacionesRouter.post("/:inscriptoId/mia/completar", completarHandler);
+evaluacionesRouter.post("/:inscriptoId/preseleccion", registrarPreseleccionHandler);
+evaluacionesRouter.post("/:inscriptoId/mia", enviarEvaluacionHandler);
 evaluacionesRouter.get("/:inscriptoId/companero", obtenerCompaneroHandler);

@@ -6,12 +6,12 @@ export type HojaParseada = {
 };
 
 export function listarHojas(rutaArchivo: string): string[] {
-  const workbook = XLSX.readFile(rutaArchivo, { cellDates: true });
+  const workbook = XLSX.readFile(rutaArchivo, { cellDates: true, codepage: 65001 });
   return workbook.SheetNames;
 }
 
 export function parsearHoja(rutaArchivo: string, nombreHoja: string): HojaParseada {
-  const workbook = XLSX.readFile(rutaArchivo, { cellDates: true });
+  const workbook = XLSX.readFile(rutaArchivo, { cellDates: true, codepage: 65001 });
   const sheet = workbook.Sheets[nombreHoja];
   if (!sheet) {
     throw new Error(`La hoja "${nombreHoja}" no existe en el archivo`);

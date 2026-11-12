@@ -3,6 +3,7 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
+import { PasswordInput } from "../components/ui/PasswordInput";
 import { Alerta } from "../components/ui/Feedback";
 import { extraerMensajeError } from "../api/client";
 
@@ -48,10 +49,9 @@ export function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
-          <Input
+          <PasswordInput
             id="password"
             label="Contraseña"
-            type="password"
             autoComplete="current-password"
             required
             value={password}

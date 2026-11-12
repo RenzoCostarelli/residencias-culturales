@@ -10,6 +10,7 @@ import {
   fijarResultadoFinal,
   listarInscriptosDeGrupo,
   listarInscriptosSinGrupo,
+  reabrirPreseleccion,
 } from "./inscriptos.service";
 
 export const listarInscriptosDeGrupoHandler = asyncHandler(async (req, res) => {
@@ -43,5 +44,13 @@ export const resultadoFinalHandler = asyncHandler(async (req, res) => {
   }
   const body = resultadoFinalSchema.parse(req.body);
   const inscripto = await fijarResultadoFinal(req.user, req.params.id, body.resultadoFinal);
+  res.json(inscripto);
+});
+
+export const reabrirPreseleccionHandler = asyncHandler(async (req, res) => {
+  if (!req.user) {
+    throw new AppError(401, "No autenticado");
+  }
+  const inscripto = await reabrirPreseleccion(req.user, req.params.id);
   res.json(inscripto);
 });

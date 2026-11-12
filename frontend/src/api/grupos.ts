@@ -1,5 +1,12 @@
 import { apiClient } from "./client";
-import type { Grupo, Inscripto, Lote, ParEvaluadores } from "../types";
+import type {
+  EvaluadorDeGrupo,
+  Grupo,
+  Inscripto,
+  ParEvaluadores,
+  ResultadoLote,
+  ResultadoParesAutomaticos,
+} from "../types";
 
 export async function listarGrupos() {
   const res = await apiClient.get<Grupo[]>("/grupos");
@@ -24,6 +31,23 @@ export async function quitarAdministrador(grupoId: string, usuarioId: string) {
   await apiClient.delete(`/grupos/${grupoId}/administradores/${usuarioId}`);
 }
 
+// ---- Evaluadores del grupo ----
+
+export async function listarEvaluadores(grupoId: string) {
+  const res = await apiClient.get<EvaluadorDeGrupo[]>(`/grupos/${grupoId}/evaluadores`);
+  return res.data;
+}
+
+export async function agregarEvaluador(grupoId: string, usuarioId: string) {
+  await apiClient.post(`/grupos/${grupoId}/evaluadores`, { usuarioId });
+}
+
+export async function quitarEvaluador(grupoId: string, usuarioId: string) {
+  await apiClient.delete(`/grupos/${grupoId}/evaluadores/${usuarioId}`);
+}
+
+// ---- Pares y lotes ----
+
 export async function listarPares(grupoId: string) {
   const res = await apiClient.get<ParEvaluadores[]>(`/grupos/${grupoId}/pares`);
   return res.data;
@@ -34,25 +58,22 @@ export async function crearPar(grupoId: string, data: { evaluador1Id: string; ev
   return res.data;
 }
 
+export async function crearParesAutomaticos(grupoId: string) {
+  const res = await apiClient.post<ResultadoParesAutomaticos>(`/grupos/${grupoId}/pares/automaticos`);
+  return res.data;
+}
+
 export async function actualizarPar(parId: string, data: { activo: boolean }) {
   const res = await apiClient.patch<ParEvaluadores>(`/pares/${parId}`, data);
   return res.data;
 }
 
-export async function listarLotes(grupoId: string) {
-  const res = await apiClient.get<Lote[]>(`/grupos/${grupoId}/lotes`);
+export async function crearLoteParaPar(parId: string, cantidad: 10 | 20 | 30) {
+  const res = await apiClient.post<ResultadoLote>(`/pares/${parId}/lotes`, { cantidad });
   return res.data;
 }
 
-export async function crearLote(grupoId: string, data: { nombre: string; inscriptoIds: string[] }) {
-  const res = await apiClient.post<Lote>(`/grupos/${grupoId}/lotes`, data);
-  return res.data;
-}
-
-export async function asignarParALote(loteId: string, parId: string) {
-  const res = await apiClient.patch<Lote>(`/lotes/${loteId}/asignar-par`, { parId });
-  return res.data;
-}
+// ---- Inscriptos ----
 
 export async function listarInscriptosDeGrupo(grupoId: string) {
   const res = await apiClient.get<Inscripto[]>(`/grupos/${grupoId}/inscriptos`);
@@ -84,5 +105,10 @@ export async function fijarResultadoFinal(
   const res = await apiClient.patch<Inscripto>(`/inscriptos/${inscriptoId}/resultado-final`, {
     resultadoFinal,
   });
+  return res.data;
+}
+
+export async function reabrirPreseleccion(inscriptoId: string) {
+  const res = await apiClient.patch<Inscripto>(`/inscriptos/${inscriptoId}/preseleccion/reabrir`);
   return res.data;
 }

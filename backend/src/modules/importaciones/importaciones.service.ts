@@ -5,9 +5,14 @@ import { AppError } from "../../shared/errors";
 import { Prisma, prisma, type RolEspecialCampo } from "../../shared/prisma";
 import { parseFecha } from "../../shared/utils/fecha";
 import { generarUid } from "../../shared/utils/uid";
-import { crearCampo } from "../rubrica/rubrica.service";
+import { actualizarCampo, crearCampo } from "../rubrica/rubrica.service";
 import { elegirHojaPorDefecto, listarHojas, parsearHoja } from "./excel-parser";
-import { esColumnaDeVerificacion, sugerirRolEspecial } from "./importaciones.suggestions";
+import {
+  esColumnaDeVerificacion,
+  normalizarEtiqueta,
+  sugerirAgrupacion,
+  sugerirRolEspecial,
+} from "./importaciones.suggestions";
 import type { EntradaMapeo } from "./importaciones.schemas";
 
 export const UPLOADS_DIR = path.resolve(process.cwd(), "uploads");
@@ -29,11 +34,44 @@ function hashArchivo(rutaArchivo: string): string {
   return crypto.createHash("sha256").update(buffer).digest("hex");
 }
 
+type CampoExistente = Awaited<ReturnType<typeof prisma.campoFormulario.findMany>>[number];
+
+// Los encabezados cambian entre exportaciones del formulario ("2.4.1 Oficios\n¿Qué...", "Oficios",
+// "Lenguajes Artísticos" vs "2.4.3 Lenguajes Artísticos y Expresivos"), así que se compara en forma
+// normalizada: primero igualdad exacta y, si no, un encabezado corto que sea prefijo de un único
+// criterio evaluable.
+function buscarCampoExistente(nombre: string, campos: { campo: CampoExistente; norm: string }[]) {
+  const norm = normalizarEtiqueta(nombre);
+  if (!norm) return undefined;
+
+  const exacto = campos.find((c) => c.norm === norm);
+  if (exacto) return exacto.campo;
+
+  if (norm.length >= 6) {
+    const porPrefijo = campos.filter((c) => c.campo.esEvaluable && c.norm.startsWith(norm));
+    if (porPrefijo.length === 1) return porPrefijo[0].campo;
+  }
+
+  return undefined;
+}
+
 async function construirVistaPrevia(rutaArchivo: string, hoja: string) {
   const { columnas, filas } = parsearHoja(rutaArchivo, hoja);
   const camposExistentes = await prisma.campoFormulario.findMany();
-  const porEtiqueta = new Map(camposExistentes.map((campo) => [campo.etiqueta.trim().toLowerCase(), campo]));
+  const camposNormalizados = camposExistentes.map((campo) => ({ campo, norm: normalizarEtiqueta(campo.etiqueta) }));
+  const evaluablesPorClave = new Map(
+    camposExistentes.filter((campo) => campo.esEvaluable && campo.activo).map((campo) => [campo.clave, campo]),
+  );
   const rolesYaAsignados = new Set(camposExistentes.map((campo) => campo.rolEspecial).filter(Boolean));
+
+  // Columnas que el formulario reparte en varias preguntas ("Experiencia 1 - Lugar", "Título Secundario")
+  // y que la rúbrica evalúa como un solo criterio: se proponen colgadas de ese criterio.
+  const agrupacionPara = (nombre: string) => {
+    const sugerida = sugerirAgrupacion(nombre);
+    const padre = sugerida ? evaluablesPorClave.get(sugerida.padreClave) : undefined;
+    if (!sugerida || !padre) return undefined;
+    return { padreId: padre.id, agrupador: sugerida.agrupador, etiquetaCorta: sugerida.etiquetaCorta };
+  };
 
   const columnasInfo = columnas.map((nombre) => {
     const muestra = filas.slice(0, PREVIEW_FILAS).map((fila) => fila[nombre]);
@@ -42,11 +80,9 @@ async function construirVistaPrevia(rutaArchivo: string, hoja: string) {
       return { nombre, muestra, sugerencia: { accion: "ignorar" as const } };
     }
 
-    // Algunas columnas del excel repiten la etiqueta corta de la pregunta en la primera línea
-    // y agregan la consigna completa después de un salto de línea (ej. "2.4.1 Oficios\n¿Qué...").
-    const primeraLinea = nombre.split("\n")[0]?.trim().toLowerCase() ?? "";
-    const existente = porEtiqueta.get(nombre.trim().toLowerCase()) ?? porEtiqueta.get(primeraLinea);
+    const existente = buscarCampoExistente(nombre, camposNormalizados);
     if (existente) {
+      const agrupacion = existente.padreId ? undefined : agrupacionPara(nombre);
       return {
         nombre,
         muestra,
@@ -54,6 +90,9 @@ async function construirVistaPrevia(rutaArchivo: string, hoja: string) {
           accion: "existente" as const,
           campoId: existente.id,
           rolEspecial: existente.rolEspecial ?? undefined,
+          padreId: existente.padreId ?? agrupacion?.padreId,
+          agrupador: existente.agrupador ?? agrupacion?.agrupador,
+          etiquetaCorta: existente.etiquetaCorta ?? agrupacion?.etiquetaCorta,
         },
       };
     }
@@ -67,6 +106,8 @@ async function construirVistaPrevia(rutaArchivo: string, hoja: string) {
       (valor) => typeof valor === "string" && /^https?:\/\//i.test(valor.trim()),
     );
 
+    const agrupacion = agrupacionPara(nombre);
+
     return {
       nombre,
       muestra,
@@ -76,6 +117,9 @@ async function construirVistaPrevia(rutaArchivo: string, hoja: string) {
         esEvaluable: false,
         tipoDato: pareceUrl ? ("URL" as const) : undefined,
         rolEspecial: rolLibre,
+        padreId: agrupacion?.padreId,
+        agrupador: agrupacion?.agrupador,
+        etiquetaCorta: agrupacion?.etiquetaCorta,
       },
     };
   });
@@ -169,6 +213,15 @@ export async function guardarMapeo(importacionId: string, entradas: EntradaMapeo
           where: { id: campoId },
           data: { rolEspecial: entrada.rolEspecial },
         });
+      }
+
+      const agrupacion = {
+        padreId: entrada.padreId,
+        agrupador: entrada.agrupador,
+        etiquetaCorta: entrada.etiquetaCorta,
+      };
+      if (Object.values(agrupacion).some((valor) => valor !== undefined)) {
+        await actualizarCampo(campoId, agrupacion);
       }
     } else {
       const nuevo = await crearCampo({ ...entrada.campoNuevo, rolEspecial: entrada.rolEspecial });

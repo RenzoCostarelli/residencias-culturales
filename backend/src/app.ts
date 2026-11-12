@@ -8,7 +8,6 @@ import { gruposRouter } from "./modules/grupos/grupos.routes";
 import { rubricaRouter } from "./modules/rubrica/rubrica.routes";
 import { importacionesRouter } from "./modules/importaciones/importaciones.routes";
 import { paresRouter } from "./modules/pares/pares.routes";
-import { lotesRouter } from "./modules/lotes/lotes.routes";
 import { inscriptosRouter } from "./modules/inscriptos/inscriptos.routes";
 import { evaluacionesRouter } from "./modules/evaluaciones/evaluaciones.routes";
 
@@ -33,7 +32,6 @@ export function createApp() {
   app.use("/rubrica", rubricaRouter);
   app.use("/importaciones", importacionesRouter);
   app.use("/pares", paresRouter);
-  app.use("/lotes", lotesRouter);
   app.use("/inscriptos", inscriptosRouter);
   app.use("/evaluaciones", evaluacionesRouter);
 

@@ -1,19 +1,29 @@
 import { asyncHandler, AppError } from "../../shared/errors";
-import { guardarBorradorSchema } from "./evaluaciones.schemas";
+import { asignadosQuerySchema, enviarEvaluacionSchema, preseleccionSchema } from "./evaluaciones.schemas";
 import {
-  completarEvaluacion,
-  guardarBorrador,
+  enviarEvaluacion,
   listarAsignados,
+  listarMisGrupos,
   obtenerEvaluacionCompanero,
   obtenerEvaluacionPropia,
+  registrarPreseleccion,
 } from "./evaluaciones.service";
+
+export const listarMisGruposHandler = asyncHandler(async (req, res) => {
+  if (!req.user) {
+    throw new AppError(401, "No autenticado");
+  }
+  const grupos = await listarMisGrupos(req.user.id);
+  res.json(grupos);
+});
 
 export const listarAsignadosHandler = asyncHandler(async (req, res) => {
   if (!req.user) {
     throw new AppError(401, "No autenticado");
   }
-  const inscriptos = await listarAsignados(req.user.id);
-  res.json(inscriptos);
+  const query = asignadosQuerySchema.parse(req.query);
+  const resultado = await listarAsignados(req.user.id, query);
+  res.json(resultado);
 });
 
 export const obtenerMiaHandler = asyncHandler(async (req, res) => {
@@ -24,21 +34,22 @@ export const obtenerMiaHandler = asyncHandler(async (req, res) => {
   res.json(evaluacion);
 });
 
-export const guardarBorradorHandler = asyncHandler(async (req, res) => {
+export const registrarPreseleccionHandler = asyncHandler(async (req, res) => {
   if (!req.user) {
     throw new AppError(401, "No autenticado");
   }
-  const body = guardarBorradorSchema.parse(req.body);
-  const evaluacion = await guardarBorrador(req.user.id, req.params.inscriptoId, body);
-  res.json(evaluacion);
+  const body = preseleccionSchema.parse(req.body);
+  const resultado = await registrarPreseleccion(req.user.id, req.params.inscriptoId, body);
+  res.json(resultado);
 });
 
-export const completarHandler = asyncHandler(async (req, res) => {
+export const enviarEvaluacionHandler = asyncHandler(async (req, res) => {
   if (!req.user) {
     throw new AppError(401, "No autenticado");
   }
-  const evaluacion = await completarEvaluacion(req.user.id, req.params.inscriptoId);
-  res.json(evaluacion);
+  const body = enviarEvaluacionSchema.parse(req.body);
+  const evaluacion = await enviarEvaluacion(req.user.id, req.params.inscriptoId, body);
+  res.status(201).json(evaluacion);
 });
 
 export const obtenerCompaneroHandler = asyncHandler(async (req, res) => {

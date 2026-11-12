@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { apiClient, registerUnauthorizedHandler } from "../api/client";
 import type { Usuario } from "../types";
 
@@ -8,6 +8,8 @@ type AuthContextValue = {
   cargando: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  // Para reflejar cambios del propio usuario (ej. ya cambió la contraseña) sin volver a loguearse.
+  actualizarUsuario: (cambios: Partial<Usuario>) => void;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -60,7 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [token]);
 
-  async function login(email: string, password: string) {
+  const login = useCallback(async (email: string, password: string) => {
     const res = await apiClient.post<{ token: string; usuario: Usuario }>("/auth/login", {
       email,
       password,
@@ -68,17 +70,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEY, res.data.token);
     setToken(res.data.token);
     setUsuario(res.data.usuario);
-  }
+  }, []);
 
-  function logout() {
+  const logout = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY);
     setToken(null);
     setUsuario(null);
-  }
+  }, []);
+
+  const actualizarUsuario = useCallback((cambios: Partial<Usuario>) => {
+    setUsuario((previo) => (previo ? { ...previo, ...cambios } : previo));
+  }, []);
 
   const value = useMemo(
-    () => ({ usuario, token, cargando, login, logout }),
-    [usuario, token, cargando],
+    () => ({ usuario, token, cargando, login, logout, actualizarUsuario }),
+    [usuario, token, cargando, login, logout, actualizarUsuario],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

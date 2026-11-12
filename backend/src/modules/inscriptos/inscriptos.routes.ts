@@ -5,6 +5,7 @@ import {
   asignarGrupoHandler,
   asignarGrupoLoteHandler,
   listarSinGrupoHandler,
+  reabrirPreseleccionHandler,
   resultadoFinalHandler,
 } from "./inscriptos.controller";
 
@@ -18,4 +19,9 @@ inscriptosRouter.patch(
   "/:id/resultado-final",
   requireRole("SUPERADMIN", "ADMIN_GRUPO"),
   resultadoFinalHandler,
+);
+inscriptosRouter.patch(
+  "/:id/preseleccion/reabrir",
+  requireRole("SUPERADMIN", "ADMIN_GRUPO"),
+  reabrirPreseleccionHandler,
 );

@@ -1,6 +1,15 @@
 import { AppError } from "../../shared/errors";
 import { prisma, type RolUsuario } from "../../shared/prisma";
 
+const SELECT_USUARIO = {
+  id: true,
+  nombre: true,
+  apellido: true,
+  email: true,
+  rol: true,
+  activo: true,
+} as const;
+
 export async function listarGrupos(usuario: { id: string; rol: RolUsuario }) {
   if (usuario.rol === "SUPERADMIN") {
     return prisma.grupo.findMany({ orderBy: { nombre: "asc" } });
@@ -78,5 +87,78 @@ export async function asegurarAccesoGrupo(usuario: { id: string; rol: RolUsuario
   }
   if (usuario.rol !== "ADMIN_GRUPO" || !(await usuarioAdministraGrupo(usuario.id, grupoId))) {
     throw new AppError(403, "No administrás este grupo");
+  }
+}
+
+// ---- Evaluadores del grupo (cualquier rol puede evaluar) ----
+
+export async function listarEvaluadores(usuario: { id: string; rol: RolUsuario }, grupoId: string) {
+  await asegurarAccesoGrupo(usuario, grupoId);
+
+  const [miembros, paresActivos] = await Promise.all([
+    prisma.grupoEvaluador.findMany({
+      where: { grupoId },
+      include: { usuario: { select: SELECT_USUARIO } },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.parEvaluadores.findMany({
+      where: { grupoId, activo: true },
+      select: { evaluador1Id: true, evaluador2Id: true },
+    }),
+  ]);
+
+  const enPar = new Set(paresActivos.flatMap((p) => [p.evaluador1Id, p.evaluador2Id]));
+
+  return miembros.map((m) => ({
+    ...m.usuario,
+    agregadoAt: m.createdAt,
+    enPar: enPar.has(m.usuarioId),
+  }));
+}
+
+export async function agregarEvaluador(
+  usuario: { id: string; rol: RolUsuario },
+  grupoId: string,
+  usuarioId: string,
+) {
+  await asegurarAccesoGrupo(usuario, grupoId);
+
+  const [grupo, evaluador] = await Promise.all([
+    prisma.grupo.findUnique({ where: { id: grupoId } }),
+    prisma.usuario.findUnique({ where: { id: usuarioId } }),
+  ]);
+  if (!grupo) {
+    throw new AppError(404, "Grupo no encontrado");
+  }
+  if (!evaluador || !evaluador.activo) {
+    throw new AppError(404, "Usuario no encontrado o inactivo");
+  }
+
+  return prisma.grupoEvaluador.upsert({
+    where: { grupoId_usuarioId: { grupoId, usuarioId } },
+    update: {},
+    create: { grupoId, usuarioId },
+    include: { usuario: { select: SELECT_USUARIO } },
+  });
+}
+
+export async function quitarEvaluador(
+  usuario: { id: string; rol: RolUsuario },
+  grupoId: string,
+  usuarioId: string,
+) {
+  await asegurarAccesoGrupo(usuario, grupoId);
+
+  const enParActivo = await prisma.parEvaluadores.findFirst({
+    where: { grupoId, activo: true, OR: [{ evaluador1Id: usuarioId }, { evaluador2Id: usuarioId }] },
+  });
+  if (enParActivo) {
+    throw new AppError(409, "El usuario integra un par activo de este grupo; desactivá el par primero");
+  }
+
+  try {
+    await prisma.grupoEvaluador.delete({ where: { grupoId_usuarioId: { grupoId, usuarioId } } });
+  } catch {
+    throw new AppError(404, "Ese usuario no es evaluador de este grupo");
   }
 }

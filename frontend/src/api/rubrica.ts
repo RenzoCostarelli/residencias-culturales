@@ -1,5 +1,5 @@
 import { apiClient } from "./client";
-import type { CampoFormulario, RolEspecialCampo, TipoDatoCampo } from "../types";
+import type { AgrupacionCampo, CampoFormulario, RolEspecialCampo, TipoDatoCampo } from "../types";
 
 export async function listarCampos() {
   const res = await apiClient.get<{
@@ -10,16 +10,18 @@ export async function listarCampos() {
   return res.data;
 }
 
-export async function crearCampo(data: {
-  clave?: string;
-  etiqueta: string;
-  tipoDato: TipoDatoCampo;
-  esIdentificatorio?: boolean;
-  esEvaluable?: boolean;
-  puntajeMaximo?: number;
-  rolEspecial?: RolEspecialCampo;
-  orden?: number;
-}) {
+export async function crearCampo(
+  data: {
+    clave?: string;
+    etiqueta: string;
+    tipoDato: TipoDatoCampo;
+    esIdentificatorio?: boolean;
+    esEvaluable?: boolean;
+    puntajeMaximo?: number;
+    rolEspecial?: RolEspecialCampo;
+    orden?: number;
+  } & AgrupacionCampo,
+) {
   const res = await apiClient.post<CampoFormulario>("/rubrica/campos", data);
   return res.data;
 }
@@ -33,7 +35,8 @@ export async function actualizarCampo(
     esIdentificatorio: boolean;
     activo: boolean;
     orden: number;
-  }>,
+  }> &
+    AgrupacionCampo,
 ) {
   const res = await apiClient.patch<CampoFormulario>(`/rubrica/campos/${id}`, data);
   return res.data;

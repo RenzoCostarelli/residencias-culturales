@@ -4,15 +4,16 @@ import { useQuery } from "@tanstack/react-query";
 import { listarGrupos } from "../../api/grupos";
 import { useAuth } from "../../context/AuthContext";
 import { Spinner } from "../../components/ui/Feedback";
+import { Pestanias } from "../../components/ui/Pestanias";
+import { EvaluadoresTab } from "./EvaluadoresTab";
 import { ParesTab } from "./ParesTab";
-import { LotesTab } from "./LotesTab";
 import { InscriptosTab } from "./InscriptosTab";
 
-type Pestania = "pares" | "lotes" | "inscriptos";
+type Pestania = "evaluadores" | "pares" | "inscriptos";
 
 const PESTANIAS: { id: Pestania; label: string }[] = [
+  { id: "evaluadores", label: "Evaluadores" },
   { id: "pares", label: "Pares de evaluadores" },
-  { id: "lotes", label: "Lotes" },
   { id: "inscriptos", label: "Inscriptos" },
 ];
 
@@ -51,25 +52,10 @@ export function GrupoDetailPage() {
         {grupo?.descripcion && <p className="text-sm text-text-muted">{grupo.descripcion}</p>}
       </div>
 
-      <div className="flex gap-1 border-b border-border">
-        {PESTANIAS.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            onClick={() => setPestania(p.id)}
-            className={`border-b-2 px-4 py-2 text-sm font-medium transition-colors duration-150 ${
-              pestania === p.id
-                ? "border-primary text-primary"
-                : "border-transparent text-text-muted hover:text-text"
-            }`}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
+      <Pestanias items={PESTANIAS} activa={pestania} onChange={setPestania} />
 
+      {pestania === "evaluadores" && <EvaluadoresTab grupoId={grupoId} />}
       {pestania === "pares" && <ParesTab grupoId={grupoId} />}
-      {pestania === "lotes" && <LotesTab grupoId={grupoId} />}
       {pestania === "inscriptos" && <InscriptosTab grupoId={grupoId} />}
     </div>
   );

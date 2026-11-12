@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { agrupacionCampoSchema } from "../rubrica/rubrica.schemas";
 
 const tipoDatoSchema = z.enum([
   "TEXTO",
@@ -34,6 +35,9 @@ const entradaMapeoSchema = z.discriminatedUnion("accion", [
     nombreExcel: z.string().min(1),
     campoId: z.string().uuid(),
     rolEspecial: rolEspecialSchema.optional(),
+    // Si vienen, se actualiza la agrupación del campo existente (ej. columnas importadas antes
+    // de que existiera el concepto de criterio padre).
+    ...agrupacionCampoSchema,
   }),
   z.object({
     accion: z.literal("nueva"),
@@ -44,6 +48,7 @@ const entradaMapeoSchema = z.discriminatedUnion("accion", [
       esIdentificatorio: z.boolean().optional(),
       esEvaluable: z.boolean().optional(),
       puntajeMaximo: z.number().int().min(0).max(100).optional(),
+      ...agrupacionCampoSchema,
     }),
     rolEspecial: rolEspecialSchema.optional(),
   }),

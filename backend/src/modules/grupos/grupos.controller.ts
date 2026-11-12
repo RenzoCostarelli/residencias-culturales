@@ -3,13 +3,17 @@ import {
   actualizarGrupoSchema,
   administradorGrupoSchema,
   crearGrupoSchema,
+  evaluadorGrupoSchema,
 } from "./grupos.schemas";
 import {
   actualizarGrupo,
   agregarAdministrador,
+  agregarEvaluador,
   crearGrupo,
+  listarEvaluadores,
   listarGrupos,
   quitarAdministrador,
+  quitarEvaluador,
 } from "./grupos.service";
 
 export const listarGruposHandler = asyncHandler(async (req, res) => {
@@ -45,5 +49,30 @@ export const agregarAdministradorHandler = asyncHandler(async (req, res) => {
 
 export const quitarAdministradorHandler = asyncHandler(async (req, res) => {
   await quitarAdministrador(req.params.id, req.params.usuarioId);
+  res.status(204).send();
+});
+
+export const listarEvaluadoresHandler = asyncHandler(async (req, res) => {
+  if (!req.user) {
+    throw new AppError(401, "No autenticado");
+  }
+  const evaluadores = await listarEvaluadores(req.user, req.params.grupoId);
+  res.json(evaluadores);
+});
+
+export const agregarEvaluadorHandler = asyncHandler(async (req, res) => {
+  if (!req.user) {
+    throw new AppError(401, "No autenticado");
+  }
+  const body = evaluadorGrupoSchema.parse(req.body);
+  const relacion = await agregarEvaluador(req.user, req.params.grupoId, body.usuarioId);
+  res.status(201).json(relacion);
+});
+
+export const quitarEvaluadorHandler = asyncHandler(async (req, res) => {
+  if (!req.user) {
+    throw new AppError(401, "No autenticado");
+  }
+  await quitarEvaluador(req.user, req.params.grupoId, req.params.usuarioId);
   res.status(204).send();
 });

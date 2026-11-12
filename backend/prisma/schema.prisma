@@ -45,9 +45,16 @@ enum EstadoImportacion {
   ERROR
 }
 
-enum EstadoEvaluacion {
-  BORRADOR
-  COMPLETA
+enum EstadoPreseleccion {
+  PENDIENTE
+  APROBADO
+  RECHAZADO
+}
+
+enum EstadoDocumentoPreseleccion {
+  CORRECTO
+  FALTANTE
+  INCORRECTO
 }
 
 enum RolEspecialCampo {
@@ -67,14 +74,19 @@ model Usuario {
   apellido     String
   rol          RolUsuario
   activo       Boolean    @default(true)
+  // true cuando la contraseña vigente fue generada por el sistema (alta o restablecimiento):
+  // el frontend muestra el aviso para cambiarla hasta que el usuario lo haga.
+  debeCambiarPassword Boolean @default(false) @map("debe_cambiar_password")
   createdById  String?    @map("created_by")
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
 
-  gruposAdministrados GrupoAdministrador[]
-  paresComoEvaluador1 ParEvaluadores[]      @relation("Evaluador1")
-  paresComoEvaluador2 ParEvaluadores[]      @relation("Evaluador2")
-  evaluaciones        Evaluacion[]
+  gruposAdministrados  GrupoAdministrador[]
+  gruposComoEvaluador  GrupoEvaluador[]
+  paresComoEvaluador1  ParEvaluadores[]      @relation("Evaluador1")
+  paresComoEvaluador2  ParEvaluadores[]      @relation("Evaluador2")
+  evaluaciones         Evaluacion[]
+  preseleccionesHechas Inscripto[]           @relation("PreseleccionPor")
 
   @@map("usuarios")
 }
@@ -88,6 +100,7 @@ model Grupo {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   administradores GrupoAdministrador[]
+  evaluadores     GrupoEvaluador[]
   pares           ParEvaluadores[]
   lotes           Lote[]
   inscriptos      Inscripto[]
@@ -105,6 +118,21 @@ model GrupoAdministrador {
 
   @@id([grupoId, usuarioId])
   @@map("grupo_administradores")
+}
+
+// Usuarios (de cualquier rol) habilitados para evaluar en un grupo. Los pares de un grupo
+// solo pueden armarse entre sus evaluadores, y la página del evaluador muestra una pestaña
+// por cada grupo donde integra un par activo.
+model GrupoEvaluador {
+  grupoId   String   @map("grupo_id")
+  usuarioId String   @map("usuario_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  grupo   Grupo   @relation(fields: [grupoId], references: [id], onDelete: Cascade)
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@id([grupoId, usuarioId])
+  @@map("grupo_evaluadores")
 }
 
 model ParEvaluadores {
@@ -150,13 +178,23 @@ model CampoFormulario {
   esEvaluable    Boolean       @default(false) @map("es_evaluable")
   puntajeMaximo  Decimal?      @map("puntaje_maximo") @db.Decimal(5, 2)
   rolEspecial    RolEspecialCampo? @map("rol_especial")
+  // Agrupación de campos identificatorios bajo un criterio evaluable: ej. "Experiencia 1 - Lugar"
+  // cuelga de "2.2 Experiencia laboral" con agrupador "Experiencia 1" y etiquetaCorta "Lugar".
+  // En el formulario de evaluación cada criterio muestra sus subcampos agrupados como párrafos.
+  padreId        String?       @map("padre_id")
+  agrupador      String?
+  etiquetaCorta  String?       @map("etiqueta_corta")
   orden          Int           @default(0)
   activo         Boolean       @default(true)
   createdAt      DateTime      @default(now()) @map("created_at")
   updatedAt      DateTime      @updatedAt @map("updated_at")
 
-  respuestas RespuestaInscripto[]
-  detalles   EvaluacionDetalle[]
+  padre     CampoFormulario?  @relation("Subcampos", fields: [padreId], references: [id], onDelete: SetNull)
+  subcampos CampoFormulario[] @relation("Subcampos")
+
+  respuestas             RespuestaInscripto[]
+  detalles               EvaluacionDetalle[]
+  preseleccionDocumentos PreseleccionDocumento[]
 
   @@unique([rolEspecial])
   @@map("campos_formulario")
@@ -197,6 +235,13 @@ model Inscripto {
   loteId  String? @map("lote_id")
   parId   String? @map("par_id")
 
+  // Preselección: antes de evaluar, un integrante del par valida la documentación subida
+  // (documento por documento, ver PreseleccionDocumento) y aprueba o rechaza al inscripto.
+  estadoPreseleccion      EstadoPreseleccion @default(PENDIENTE) @map("estado_preseleccion")
+  preseleccionObservacion String?            @map("preseleccion_observacion")
+  preseleccionPorId       String?            @map("preseleccion_por")
+  preseleccionAt          DateTime?          @map("preseleccion_at")
+
   estadoEvaluacion EstadoEvaluacionInscripto @default(PENDIENTE) @map("estado_evaluacion")
   resultadoFinal   ResultadoFinalInscripto   @default(PENDIENTE) @map("resultado_final")
   puntajeFinal     Decimal?                  @map("puntaje_final") @db.Decimal(5, 2)
@@ -209,15 +254,33 @@ model Inscripto {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  grupo       Grupo?            @relation(fields: [grupoId], references: [id])
-  lote        Lote?             @relation(fields: [loteId], references: [id])
-  par         ParEvaluadores?   @relation(fields: [parId], references: [id])
-  importacion ImportacionExcel? @relation(fields: [importacionId], references: [id])
+  grupo           Grupo?            @relation(fields: [grupoId], references: [id])
+  lote            Lote?             @relation(fields: [loteId], references: [id])
+  par             ParEvaluadores?   @relation(fields: [parId], references: [id])
+  importacion     ImportacionExcel? @relation(fields: [importacionId], references: [id])
+  preseleccionPor Usuario?          @relation("PreseleccionPor", fields: [preseleccionPorId], references: [id])
 
-  respuestas   RespuestaInscripto[]
-  evaluaciones Evaluacion[]
+  respuestas             RespuestaInscripto[]
+  evaluaciones           Evaluacion[]
+  preseleccionDocumentos PreseleccionDocumento[]
 
   @@map("inscriptos")
+}
+
+// Resultado de la validación de cada documento (campos tipo URL) en la preselección.
+// Se conserva aunque el inscripto sea rechazado: sirve para saber dónde se equivoca más la gente al inscribirse.
+model PreseleccionDocumento {
+  id          String                      @id @default(uuid())
+  inscriptoId String                      @map("inscripto_id")
+  campoId     String                      @map("campo_id")
+  estado      EstadoDocumentoPreseleccion
+  observacion String?
+
+  inscripto Inscripto       @relation(fields: [inscriptoId], references: [id], onDelete: Cascade)
+  campo     CampoFormulario @relation(fields: [campoId], references: [id])
+
+  @@unique([inscriptoId, campoId])
+  @@map("preseleccion_documentos")
 }
 
 model RespuestaInscripto {
@@ -233,15 +296,14 @@ model RespuestaInscripto {
   @@map("respuestas_inscripto")
 }
 
+// Una evaluación existe solo cuando fue enviada completa: no hay borradores y no se puede editar.
 model Evaluacion {
-  id                String           @id @default(uuid())
-  inscriptoId       String           @map("inscripto_id")
-  evaluadorId       String           @map("evaluador_id")
-  estado            EstadoEvaluacion @default(BORRADOR)
-  puntajeTotal      Decimal?         @map("puntaje_total") @db.Decimal(5, 2)
-  comentarioGeneral String?          @map("comentario_general")
-  fechaInicio       DateTime         @default(now()) @map("fecha_inicio")
-  fechaCompletada   DateTime?        @map("fecha_completada")
+  id                String   @id @default(uuid())
+  inscriptoId       String   @map("inscripto_id")
+  evaluadorId       String   @map("evaluador_id")
+  puntajeTotal      Decimal  @map("puntaje_total") @db.Decimal(5, 2)
+  comentarioGeneral String?  @map("comentario_general")
+  fechaCompletada   DateTime @default(now()) @map("fecha_completada")
 
   inscripto Inscripto @relation(fields: [inscriptoId], references: [id], onDelete: Cascade)
   evaluador Usuario   @relation(fields: [evaluadorId], references: [id])

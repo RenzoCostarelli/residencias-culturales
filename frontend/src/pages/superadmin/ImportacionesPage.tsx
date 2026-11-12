@@ -9,6 +9,7 @@ import {
 } from "../../api/importaciones";
 import { listarCampos } from "../../api/rubrica";
 import { extraerMensajeError } from "../../api/client";
+import { ETIQUETA_ROL_ESPECIAL, ETIQUETA_TIPO_DATO } from "../../lib/etiquetas";
 import { Button } from "../../components/ui/Button";
 import { Input, Select } from "../../components/ui/Input";
 import { Card } from "../../components/ui/Card";
@@ -32,26 +33,11 @@ type FilaMapeo = {
   tipoDatoNueva: TipoDatoCampo;
   puntajeMaximoNueva: string;
   rolEspecial: RolEspecialCampo | "";
-};
-
-const ETIQUETA_TIPO_DATO: Record<TipoDatoCampo, string> = {
-  TEXTO: "Texto",
-  TEXTO_LARGO: "Texto largo",
-  NUMERO: "Número",
-  FECHA: "Fecha",
-  OPCION_UNICA: "Opción única",
-  OPCION_MULTIPLE: "Opción múltiple",
-  BOOLEANO: "Sí/No",
-  URL: "Link / archivo (URL)",
-};
-
-const ETIQUETA_ROL: Record<RolEspecialCampo, string> = {
-  NOMBRE_COMPLETO: "Nombre completo",
-  EMAIL: "Email",
-  DNI: "DNI",
-  TELEFONO: "Teléfono",
-  FECHA_NACIMIENTO: "Fecha de nacimiento",
-  ZONA_GRUPO: "Zona → Grupo",
+  // Agrupación bajo un criterio evaluable (ver CampoFormulario.padreId): permite que columnas
+  // sueltas del excel ("Experiencia 1 - Lugar", "Título Secundario") aparezcan agrupadas como
+  // párrafos bajo el criterio correspondiente (2.1/2.2/2.3) en el formulario de evaluación.
+  padreId: string;
+  agrupador: string;
 };
 
 function primeraLinea(texto: string) {
@@ -73,6 +59,8 @@ function filaDesdeColumna(col: ColumnaImportacion): FilaMapeo {
       tipoNueva: "identificatorio",
       tipoDatoNueva: "TEXTO",
       rolEspecial: "",
+      padreId: "",
+      agrupador: "",
     };
   }
   if (sug.accion === "existente") {
@@ -83,6 +71,8 @@ function filaDesdeColumna(col: ColumnaImportacion): FilaMapeo {
       tipoNueva: "identificatorio",
       tipoDatoNueva: "TEXTO",
       rolEspecial: sug.rolEspecial ?? "",
+      padreId: sug.padreId ?? "",
+      agrupador: sug.agrupador ?? "",
     };
   }
   return {
@@ -92,6 +82,8 @@ function filaDesdeColumna(col: ColumnaImportacion): FilaMapeo {
     tipoNueva: sug.esEvaluable ? "evaluable" : "identificatorio",
     tipoDatoNueva: sug.tipoDato ?? "TEXTO",
     rolEspecial: sug.rolEspecial ?? "",
+    padreId: sug.padreId ?? "",
+    agrupador: sug.agrupador ?? "",
   };
 }
 
@@ -99,12 +91,16 @@ function filaAEntrada(fila: FilaMapeo): EntradaMapeo {
   if (fila.accion === "ignorar") {
     return { accion: "ignorar", nombreExcel: fila.nombreExcel };
   }
+  const etiquetaCorta = fila.padreId ? primeraLinea(fila.nombreExcel).slice(0, 200) : undefined;
   if (fila.accion === "existente") {
     return {
       accion: "existente",
       nombreExcel: fila.nombreExcel,
       campoId: fila.campoId,
       rolEspecial: fila.rolEspecial || undefined,
+      padreId: fila.padreId || null,
+      agrupador: fila.padreId ? fila.agrupador.trim() || null : null,
+      etiquetaCorta: fila.padreId ? etiquetaCorta : null,
     };
   }
   return {
@@ -116,6 +112,9 @@ function filaAEntrada(fila: FilaMapeo): EntradaMapeo {
       esIdentificatorio: fila.tipoNueva === "identificatorio",
       esEvaluable: fila.tipoNueva === "evaluable",
       puntajeMaximo: fila.tipoNueva === "evaluable" ? Number(fila.puntajeMaximoNueva) : undefined,
+      padreId: fila.padreId || undefined,
+      agrupador: fila.padreId ? fila.agrupador.trim() || undefined : undefined,
+      etiquetaCorta: fila.padreId ? etiquetaCorta : undefined,
     },
     rolEspecial: fila.rolEspecial || undefined,
   };
@@ -130,6 +129,8 @@ export function ImportacionesPage() {
   const { data: campos } = useQuery({ queryKey: ["rubrica"], queryFn: listarCampos });
   const queryClient = useQueryClient();
   const { data: historial } = useQuery({ queryKey: ["importaciones"], queryFn: listarImportaciones });
+
+  const criteriosEvaluables = (campos?.campos ?? []).filter((c) => c.esEvaluable);
 
   const subir = useMutation({
     mutationFn: subirExcel,
@@ -248,12 +249,14 @@ export function ImportacionesPage() {
                     <th className="px-4 py-3 font-medium">Acción</th>
                     <th className="px-4 py-3 font-medium">Detalle</th>
                     <th className="px-4 py-3 font-medium">Rol especial</th>
+                    <th className="px-4 py-3 font-medium">Criterio padre</th>
+                    <th className="px-4 py-3 font-medium">Agrupador</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filas.map((fila, i) => (
                     <tr key={fila.nombreExcel} className="border-b border-border last:border-0 align-top">
-                      <td className="max-w-[220px] truncate px-4 py-2 text-text" title={fila.nombreExcel}>
+                      <td className="max-w-55 truncate px-4 py-2 text-text" title={fila.nombreExcel}>
                         {primeraLinea(fila.nombreExcel)}
                       </td>
                       <td className="px-4 py-2">
@@ -341,12 +344,38 @@ export function ImportacionesPage() {
                             }
                           >
                             <option value="">—</option>
-                            {Object.entries(ETIQUETA_ROL).map(([valor, etiqueta]) => (
+                            {Object.entries(ETIQUETA_ROL_ESPECIAL).map(([valor, etiqueta]) => (
                               <option key={valor} value={valor}>
                                 {etiqueta}
                               </option>
                             ))}
                           </Select>
+                        )}
+                      </td>
+                      <td className="px-4 py-2">
+                        {fila.accion !== "ignorar" && !fila.rolEspecial && (
+                          <Select
+                            className="w-48"
+                            value={fila.padreId}
+                            onChange={(e) => actualizarFila(i, { padreId: e.target.value })}
+                          >
+                            <option value="">Sin agrupar</option>
+                            {criteriosEvaluables.map((c) => (
+                              <option key={c.id} value={c.id}>
+                                {c.etiqueta}
+                              </option>
+                            ))}
+                          </Select>
+                        )}
+                      </td>
+                      <td className="px-4 py-2">
+                        {fila.accion !== "ignorar" && !fila.rolEspecial && fila.padreId && (
+                          <Input
+                            className="w-40"
+                            placeholder="Ej: Experiencia 1"
+                            value={fila.agrupador}
+                            onChange={(e) => actualizarFila(i, { agrupador: e.target.value })}
+                          />
                         )}
                       </td>
                     </tr>

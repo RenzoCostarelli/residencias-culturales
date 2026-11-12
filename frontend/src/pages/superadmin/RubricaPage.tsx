@@ -97,9 +97,37 @@ export function RubricaPage() {
           Campos identificatorios ({identificatorios.length})
         </h2>
         <p className="text-sm text-text-muted">
-          Datos del formulario que no se puntúan (nombre, DNI, contacto, etc.). Se crean automáticamente
-          al mapear columnas del Excel en la importación.
+          Datos del formulario que no se puntúan (nombre, DNI, contacto, etc.). Se crean automáticamente al
+          mapear columnas del Excel en la importación. Si un campo cuelga de un criterio evaluable (ej.
+          "Experiencia 1 - Lugar" bajo "2.2 Experiencia laboral"), el evaluador lo ve agrupado como párrafo
+          en el formulario de evaluación — podés corregir esa agrupación acá sin reimportar.
         </p>
+        {identificatorios.length > 0 && (
+          <Card className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-left text-text-muted">
+                    <th className="px-5 py-3 font-medium">Etiqueta</th>
+                    <th className="px-5 py-3 font-medium">Tipo</th>
+                    <th className="px-5 py-3 font-medium">Criterio padre</th>
+                    <th className="px-5 py-3 font-medium">Agrupador</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {identificatorios.map((campo) => (
+                    <FilaIdentificatoria
+                      key={campo.id}
+                      campo={campo}
+                      evaluables={evaluables}
+                      onGuardar={(cambios) => actualizar.mutate({ id: campo.id, data: cambios })}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )}
       </section>
 
       <Modal open={modalAbierto} title="Nuevo campo de rúbrica" onClose={() => setModalAbierto(false)}>
@@ -150,6 +178,64 @@ function FilaEvaluable({
         <button type="button" onClick={onToggleActivo}>
           <Badge tono={campo.activo ? "success" : "neutral"}>{campo.activo ? "Activo" : "Inactivo"}</Badge>
         </button>
+      </td>
+    </tr>
+  );
+}
+
+function FilaIdentificatoria({
+  campo,
+  evaluables,
+  onGuardar,
+}: {
+  campo: CampoFormulario;
+  evaluables: CampoFormulario[];
+  onGuardar: (cambios: { padreId: string | null; agrupador: string | null }) => void;
+}) {
+  const [padreId, setPadreId] = useState(campo.padreId ?? "");
+  const [agrupador, setAgrupador] = useState(campo.agrupador ?? "");
+
+  const cambio = padreId !== (campo.padreId ?? "") || agrupador !== (campo.agrupador ?? "");
+
+  return (
+    <tr className="border-b border-border last:border-0">
+      <td className="max-w-80 truncate px-5 py-3 text-text" title={campo.etiqueta}>
+        {campo.etiqueta}
+      </td>
+      <td className="px-5 py-3 text-text-muted">{campo.rolEspecial ? "Rol especial" : campo.tipoDato}</td>
+      <td className="px-5 py-3">
+        <Select
+          className="w-52"
+          value={padreId}
+          onChange={(e) => setPadreId(e.target.value)}
+          disabled={!!campo.rolEspecial}
+        >
+          <option value="">Sin agrupar</option>
+          {evaluables.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.etiqueta}
+            </option>
+          ))}
+        </Select>
+      </td>
+      <td className="px-5 py-3">
+        <div className="flex items-center gap-2">
+          <Input
+            className="w-44"
+            placeholder="Ej: Experiencia 1"
+            value={agrupador}
+            disabled={!padreId}
+            onChange={(e) => setAgrupador(e.target.value)}
+          />
+          {cambio && (
+            <Button
+              variante="ghost"
+              onClick={() => onGuardar({ padreId: padreId || null, agrupador: padreId ? agrupador.trim() || null : null })}
+            >
+              Guardar
+            </Button>
+          )}
+        </div>
       </td>
     </tr>
   );

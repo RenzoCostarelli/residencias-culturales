@@ -4,12 +4,18 @@ import { requireRole } from "../../middlewares/requireRole";
 import {
   actualizarGrupoHandler,
   agregarAdministradorHandler,
+  agregarEvaluadorHandler,
   crearGrupoHandler,
+  listarEvaluadoresHandler,
   listarGruposHandler,
   quitarAdministradorHandler,
+  quitarEvaluadorHandler,
 } from "./grupos.controller";
-import { crearParHandler, listarParesHandler } from "../pares/pares.controller";
-import { crearLoteHandler, listarLotesHandler } from "../lotes/lotes.controller";
+import {
+  crearParHandler,
+  crearParesAutomaticosHandler,
+  listarParesHandler,
+} from "../pares/pares.controller";
 import { listarInscriptosDeGrupoHandler } from "../inscriptos/inscriptos.controller";
 
 export const gruposRouter = Router();
@@ -27,12 +33,14 @@ gruposRouter.delete(
 
 // Anidadas: la autorización fina (admin de ESTE grupo vs. cualquier otro) la resuelve
 // asegurarAccesoGrupo() dentro de cada servicio, no alcanza con el rol a nivel de ruta.
-gruposRouter.get("/:grupoId/pares", requireRole("SUPERADMIN", "ADMIN_GRUPO"), listarParesHandler);
-gruposRouter.post("/:grupoId/pares", requireRole("SUPERADMIN", "ADMIN_GRUPO"), crearParHandler);
-gruposRouter.get("/:grupoId/lotes", requireRole("SUPERADMIN", "ADMIN_GRUPO"), listarLotesHandler);
-gruposRouter.post("/:grupoId/lotes", requireRole("SUPERADMIN", "ADMIN_GRUPO"), crearLoteHandler);
-gruposRouter.get(
-  "/:grupoId/inscriptos",
-  requireRole("SUPERADMIN", "ADMIN_GRUPO"),
-  listarInscriptosDeGrupoHandler,
-);
+const adminDeGrupo = requireRole("SUPERADMIN", "ADMIN_GRUPO");
+
+gruposRouter.get("/:grupoId/evaluadores", adminDeGrupo, listarEvaluadoresHandler);
+gruposRouter.post("/:grupoId/evaluadores", adminDeGrupo, agregarEvaluadorHandler);
+gruposRouter.delete("/:grupoId/evaluadores/:usuarioId", adminDeGrupo, quitarEvaluadorHandler);
+
+gruposRouter.get("/:grupoId/pares", adminDeGrupo, listarParesHandler);
+gruposRouter.post("/:grupoId/pares", adminDeGrupo, crearParHandler);
+gruposRouter.post("/:grupoId/pares/automaticos", adminDeGrupo, crearParesAutomaticosHandler);
+
+gruposRouter.get("/:grupoId/inscriptos", adminDeGrupo, listarInscriptosDeGrupoHandler);

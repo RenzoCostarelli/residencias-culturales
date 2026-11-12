@@ -22,8 +22,23 @@ async function liberarRolEspecial(rol: RolEspecialCampo) {
   });
 }
 
+// El padre de un subcampo tiene que ser un criterio evaluable: es bajo ese criterio que el
+// evaluador ve las respuestas agrupadas.
+async function validarPadre(padreId: string, campoId?: string) {
+  if (campoId && padreId === campoId) {
+    throw new AppError(400, "Un campo no puede ser su propio criterio padre");
+  }
+  const padre = await prisma.campoFormulario.findUnique({ where: { id: padreId } });
+  if (!padre) {
+    throw new AppError(404, "Criterio padre no encontrado");
+  }
+  if (!padre.esEvaluable) {
+    throw new AppError(400, "El criterio padre debe ser un campo evaluable");
+  }
+}
+
 export async function listarCampos() {
-  const campos = await prisma.campoFormulario.findMany({ orderBy: { orden: "asc" } });
+  const campos = await prisma.campoFormulario.findMany({ orderBy: [{ orden: "asc" }, { createdAt: "asc" }] });
   const sumaEvaluable = campos
     .filter((campo) => campo.esEvaluable && campo.activo)
     .reduce((acc, campo) => acc + Number(campo.puntajeMaximo ?? 0), 0);
@@ -45,6 +60,9 @@ export type DatosCampo = {
   puntajeMaximo?: number;
   rolEspecial?: RolEspecialCampo;
   orden?: number;
+  padreId?: string | null;
+  agrupador?: string | null;
+  etiquetaCorta?: string | null;
 };
 
 export async function crearCampo(data: DatosCampo) {
@@ -61,6 +79,9 @@ export async function crearCampo(data: DatosCampo) {
   if (data.rolEspecial) {
     await liberarRolEspecial(data.rolEspecial);
   }
+  if (data.padreId) {
+    await validarPadre(data.padreId);
+  }
 
   return prisma.campoFormulario.create({
     data: {
@@ -72,6 +93,9 @@ export async function crearCampo(data: DatosCampo) {
       puntajeMaximo: data.puntajeMaximo,
       rolEspecial: data.rolEspecial,
       orden: data.orden ?? 0,
+      padreId: data.padreId ?? null,
+      agrupador: data.agrupador || null,
+      etiquetaCorta: data.etiquetaCorta || null,
     },
   });
 }
@@ -85,6 +109,9 @@ export type DatosActualizarCampo = Partial<{
   rolEspecial: RolEspecialCampo | null;
   orden: number;
   activo: boolean;
+  padreId: string | null;
+  agrupador: string | null;
+  etiquetaCorta: string | null;
 }>;
 
 export async function actualizarCampo(id: string, data: DatosActualizarCampo) {
@@ -110,6 +137,16 @@ export async function actualizarCampo(id: string, data: DatosActualizarCampo) {
   if (data.rolEspecial) {
     await liberarRolEspecial(data.rolEspecial);
   }
+  if (data.padreId) {
+    await validarPadre(data.padreId, id);
+  }
 
-  return prisma.campoFormulario.update({ where: { id }, data });
+  return prisma.campoFormulario.update({
+    where: { id },
+    data: {
+      ...data,
+      agrupador: data.agrupador === undefined ? undefined : data.agrupador || null,
+      etiquetaCorta: data.etiquetaCorta === undefined ? undefined : data.etiquetaCorta || null,
+    },
+  });
 }
