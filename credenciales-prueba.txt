@@ -17,6 +17,11 @@ Admin de grupo (Ana Rios)
   email:    adminrosario@example.org
   password: Test1234!
 
+Admin de zona Norte (Juan Evaluador)
+  email:    adminnorte@example.org
+  password: spaLbDQdjGMX
+
 Nota: las contraseñas de eval1, eval2 y adminrosario fueron reseteadas a
 Test1234! el 2026-11-10 porque no había registro de la contraseña original
 en texto plano (solo el hash en la base).
+

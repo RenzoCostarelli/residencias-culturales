@@ -12,7 +12,7 @@ import { InscriptosTab } from "./InscriptosTab";
 type Pestania = "evaluadores" | "pares" | "inscriptos";
 
 const PESTANIAS: { id: Pestania; label: string }[] = [
-  { id: "evaluadores", label: "Evaluadores" },
+  // { id: "evaluadores", label: "Evaluadores" },
   { id: "pares", label: "Pares de evaluadores" },
   { id: "inscriptos", label: "Inscriptos" },
 ];
@@ -21,7 +21,10 @@ export function GrupoDetailPage() {
   const { grupoId } = useParams<{ grupoId: string }>();
   const { usuario } = useAuth();
   const [pestania, setPestania] = useState<Pestania>("pares");
-  const { data: grupos, isLoading } = useQuery({ queryKey: ["grupos"], queryFn: listarGrupos });
+  const { data: grupos, isLoading } = useQuery({
+    queryKey: ["grupos"],
+    queryFn: listarGrupos,
+  });
 
   if (!grupoId) return null;
   if (isLoading) {
@@ -41,12 +44,19 @@ export function GrupoDetailPage() {
     <div className="flex flex-col gap-6">
       <div>
         {mostrarVolver && (
-          <Link to="/grupos" className="text-sm text-text-muted hover:text-text">
+          <Link
+            to="/grupos"
+            className="text-sm text-text-muted hover:text-text"
+          >
             ← Zonas
           </Link>
         )}
-        <h1 className="mt-1 text-xl font-semibold text-text">{grupo?.nombre ?? "Grupo"}</h1>
-        {grupo?.descripcion && <p className="text-sm text-text-muted">{grupo.descripcion}</p>}
+        <h1 className="mt-1 text-xl font-semibold text-text">
+          {grupo?.nombre ?? "Grupo"}
+        </h1>
+        {grupo?.descripcion && (
+          <p className="text-sm text-text-muted">{grupo.descripcion}</p>
+        )}
       </div>
 
       <Pestanias items={PESTANIAS} activa={pestania} onChange={setPestania} />
